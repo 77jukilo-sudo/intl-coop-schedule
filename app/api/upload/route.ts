@@ -109,6 +109,7 @@ export async function POST(request: Request) {
   const rows = extraction.events.map((event) => ({
     group_id: groupIdOf(event.optionGroup),
     option_no: event.optionNo,
+    work_category: event.workCategory,
     title: event.title,
     start_date: event.startDate,
     end_date: event.endDate,

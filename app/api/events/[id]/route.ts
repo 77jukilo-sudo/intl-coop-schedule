@@ -99,6 +99,8 @@ export async function PATCH(
     country: "country" in parsed.value ? (parsed.value.country ?? null) : currentRow.country,
     assigneeId: "assigneeId" in parsed.value ? (parsed.value.assigneeId ?? null) : currentRow.assignee_id,
     status: parsed.value.status ?? (currentRow.status as EventFields["status"]),
+    workCategory:
+      parsed.value.workCategory ?? (currentRow.work_category as EventFields["workCategory"]),
   };
   // 날짜 미정 일정(시작일 없음)도 제목 수정·취소 처리 등은 할 수 있다. 관련 규칙은 checkCrossFields가 본다.
   const crossError = checkCrossFields(merged);

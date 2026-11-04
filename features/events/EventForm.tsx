@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
   EVENT_STATUS_LABEL,
+  WORK_CATEGORIES,
+  WORK_CATEGORY_LABEL,
   type EventStatus,
   type Member,
   type ScheduleEvent,
+  type WorkCategory,
 } from "../../types/schedule";
 import { createEvent, updateEvent } from "./eventApi";
 import {
@@ -48,6 +51,9 @@ export default function EventForm({
   const [country, setCountry] = useState(event?.country ?? "");
   const [assigneeId, setAssigneeId] = useState(event?.assigneeId ?? "");
   const [status, setStatus] = useState<EventStatus>(event?.status ?? "confirmed");
+  const [workCategory, setWorkCategory] = useState<WorkCategory>(
+    event?.workCategory ?? "unclassified",
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -82,6 +88,7 @@ export default function EventForm({
       country: country.trim() || null,
       assigneeId: assigneeId || null,
       status,
+      workCategory,
     };
   }
 
@@ -135,6 +142,7 @@ export default function EventForm({
     setCountry(conflict.country ?? "");
     setAssigneeId(conflict.assigneeId ?? "");
     setStatus(conflict.status);
+    setWorkCategory(conflict.workCategory);
     setOrigin(conflict);
     setConflict(null);
   }
@@ -356,6 +364,24 @@ export default function EventForm({
             </select>
           </label>
         </div>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">업무성격</span>
+          <select
+            value={workCategory}
+            onChange={(e) => setWorkCategory(e.target.value as WorkCategory)}
+            className={inputClass}
+          >
+            {WORK_CATEGORIES.map((value) => (
+              <option key={value} value={value}>
+                {WORK_CATEGORY_LABEL[value]}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-foreground/60">
+            초청은 우리가 외국 기관·인사를 불러오는 것, 방문은 외국 손님이 우리를 찾아오는 것입니다.
+          </span>
+        </label>
 
         {error ? (
           <p role="alert" className="text-sm text-red-600">

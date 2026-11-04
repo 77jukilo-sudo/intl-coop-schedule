@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  GEO_CATEGORY_LABEL,
+  WORK_CATEGORY_LABEL,
   EVENT_STATUS_LABEL,
   type EventStatus,
   type ScheduleEvent,
@@ -206,6 +208,11 @@ export default function EventDialog({
 
           <dt className="text-foreground/60">장소</dt>
           <dd>{formatPlace(event)}</dd>
+
+          <dt className="text-foreground/60">분류</dt>
+          <dd>
+            {GEO_CATEGORY_LABEL[event.geoCategory]} · {WORK_CATEGORY_LABEL[event.workCategory]}
+          </dd>
 
           <dt className="text-foreground/60">담당자</dt>
           <dd>{assignee}</dd>

@@ -1,5 +1,10 @@
 // 일정 입력값 검사. 서버(API)와 입력 폼이 같은 규칙을 쓴다. 서버의 검사가 최종 기준이다.
-import { EVENT_STATUSES, type EventStatus } from "../../types/schedule";
+import {
+  EVENT_STATUSES,
+  WORK_CATEGORIES,
+  type EventStatus,
+  type WorkCategory,
+} from "../../types/schedule";
 
 // 폼·API가 주고받는 일정 입력 항목 (camelCase)
 export interface EventFields {
@@ -13,6 +18,7 @@ export interface EventFields {
   country: string | null;
   assigneeId: string | null; // 담당자 (빈칸 가능)
   status: EventStatus;
+  workCategory: WorkCategory; // 업무성격 (보고·출장·초청·방문·기타·미분류)
 }
 
 export type ParseResult<T> =
@@ -123,6 +129,13 @@ export function parseEventFields(body: unknown): ParseResult<Partial<EventFields
     out.status = input.status as EventStatus;
   }
 
+  if ("workCategory" in input) {
+    if (!WORK_CATEGORIES.includes(input.workCategory as WorkCategory)) {
+      return { ok: false, message: "업무성격을 다시 선택해 주세요." };
+    }
+    out.workCategory = input.workCategory as WorkCategory;
+  }
+
   return { ok: true, value: out };
 }
 
@@ -167,6 +180,7 @@ const COLUMN_BY_FIELD: Record<keyof EventFields, string> = {
   country: "country",
   assigneeId: "assignee_id",
   status: "status",
+  workCategory: "work_category",
 };
 
 export function fieldsToRow(fields: Partial<EventFields>): Record<string, unknown> {

@@ -5,6 +5,7 @@ import { signOut } from "../../app/login/actions";
 import type { Member, ScheduleEvent } from "../../types/schedule";
 import EventDialog from "../events/EventDialog";
 import EventForm from "../events/EventForm";
+import SearchDialog from "../events/SearchDialog";
 import UndatedDialog from "../events/UndatedDialog";
 import UploadPanel from "../upload/UploadPanel";
 import {
@@ -74,6 +75,7 @@ export default function CalendarView() {
   // 날짜 미정 일정: 문서에 정확한 날짜가 없어 달력에 올라가지 못한 일정 (목록으로 따로 모아 본다)
   const [undated, setUndated] = useState<ScheduleEvent[]>([]);
   const [undatedOpen, setUndatedOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const anchor = anchorPick ?? today;
   const selectedDay = selectedPick ?? anchor;
@@ -250,6 +252,13 @@ export default function CalendarView() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            onClick={() => setSearchOpen(true)}
+            className="h-11 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
+          >
+            검색
+          </button>
+          <button
+            type="button"
             onClick={() => setUndatedOpen(true)}
             className="h-11 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
           >
@@ -381,6 +390,15 @@ export default function CalendarView() {
           onStale={() => setRetryCount((n) => n + 1)}
           onRefresh={setOpenEvent}
           onClose={() => setOpenEvent(null)}
+        />
+      ) : null}
+
+      {/* 일정 검색: 글자와 분류로 전체 기간에서 찾는다 */}
+      {searchOpen ? (
+        <SearchDialog
+          members={members}
+          onOpenEvent={setOpenEvent}
+          onClose={() => setSearchOpen(false)}
         />
       ) : null}
 

@@ -10,6 +10,7 @@
 import mammoth from "mammoth";
 import { todayKey } from "../../features/calendar/dateUtils";
 import { isRealDate } from "../../features/events/eventInput";
+import type { WorkCategory } from "../../types/schedule";
 import type { UploadKind } from "../../features/upload/uploadRules";
 
 const OPENAI_URL = "https://api.openai.com/v1/responses";
@@ -20,6 +21,7 @@ const MAX_EVENTS = 200;
 const TITLE_MAX = 200;
 const PLACE_MAX = 100;
 const DATE_NOTE_MAX = 200;
+const AI_WORK_CATEGORIES: WorkCategory[] = ["report", "trip", "invite", "visit", "etc"];
 const OPTION_GROUP_MAX = 100;
 const OPTION_NO_MAX = 20;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -38,6 +40,8 @@ export interface ExtractedEvent {
   // 1안·2안: 같은 행사의 후보안이면 공통 이름(optionGroup)과 안 번호(optionNo)가 함께 들어간다.
   optionGroup: string | null;
   optionNo: number | null;
+  // AI가 추천한 업무성격. 확실하지 않으면 "unclassified"(미분류)로 두고 부원이 고른다.
+  workCategory: WorkCategory;
 }
 
 export interface ExtractionResult {
@@ -77,7 +81,8 @@ const SYSTEM_RULES = (today: string) => `당신은 국제협력부 보고자료�
 10. 담당자는 뽑지 않습니다. 여권번호, 주민번호, 연락처, 항공권 예약번호 같은 개인 식별 정보는 결과에 절대 넣지 않습니다.
 11. 읽을 수 있는 글자가 거의 없는 문서(빈 문서, 흐린 사진, 깨진 글자)이면 readable을 false로 하고 events를 빈 목록으로 합니다.
 12. 글자는 읽을 수 있지만 일정이 하나도 없으면 readable을 true로 하고 events를 빈 목록으로 합니다.
-13. 같은 행사의 후보안이 여럿이면(예: "1안 11월 12일 / 2안 11월 19일", "A안·B안") 각 안을 별개의 일정으로 모두 적고, optionGroup에는 그 행사를 가리키는 짧은 공통 이름(안 번호는 빼고)을, optionNo에는 안 번호(1, 2, 3...)를 적습니다. A안·B안은 1·2번으로 바꿔 적습니다. 서로 다른 행사의 안은 optionGroup이 서로 달라야 합니다. 후보안이 아닌 일반 일정은 optionGroup과 optionNo를 모두 null로 둡니다. 안이 하나뿐이면 둘 다 null입니다.`;
+13. 같은 행사의 후보안이 여럿이면(예: "1안 11월 12일 / 2안 11월 19일", "A안·B안") 각 안을 별개의 일정으로 모두 적고, optionGroup에는 그 행사를 가리키는 짧은 공통 이름(안 번호는 빼고)을, optionNo에는 안 번호(1, 2, 3...)를 적습니다. A안·B안은 1·2번으로 바꿔 적습니다. 서로 다른 행사의 안은 optionGroup이 서로 달라야 합니다. 후보안이 아닌 일반 일정은 optionGroup과 optionNo를 모두 null로 둡니다. 안이 하나뿐이면 둘 다 null입니다.
+14. workCategory에는 일정의 업무성격을 하나만 고릅니다: "report"(보고·회의 보고·결과 보고), "trip"(우리 직원이 다른 곳으로 가는 출장), "invite"(우리가 외국 기관·인사를 초청하는 것), "visit"(외국 기관·인사가 우리를 방문하는 것), "etc"(위에 해당하지 않는 것: 회의·행사·교육 등). 문서에서 성격이 분명하지 않으면 null로 둡니다. 짐작하지 마세요.`;
 
 const EVENTS_SCHEMA = {
   type: "object",
@@ -102,6 +107,7 @@ const EVENTS_SCHEMA = {
           "country",
           "optionGroup",
           "optionNo",
+          "workCategory",
         ],
         properties: {
           title: { type: "string" },
@@ -115,6 +121,10 @@ const EVENTS_SCHEMA = {
           country: { type: ["string", "null"] },
           optionGroup: { type: ["string", "null"] },
           optionNo: { type: ["integer", "null"] },
+          workCategory: {
+            type: ["string", "null"],
+            enum: ["report", "trip", "invite", "visit", "etc", null],
+          },
         },
       },
     },
@@ -133,6 +143,7 @@ interface RawEvent {
   country?: unknown;
   optionGroup?: unknown;
   optionNo?: unknown;
+  workCategory?: unknown;
 }
 
 // 개인정보 거르기: AI 지시문만 믿지 않고 서버에서도 한 번 더 지운다. (PRD: 주민번호·여권번호·연락처·예약번호는 저장하지 않음)
@@ -210,6 +221,11 @@ export function sanitizeEvent(raw: RawEvent): ExtractedEvent | null {
     country: asText(raw.country, PLACE_MAX),
     optionGroup: hasOption ? optionGroup : null,
     optionNo: hasOption ? optionNo : null,
+    workCategory:
+      typeof raw.workCategory === "string" &&
+      AI_WORK_CATEGORIES.includes(raw.workCategory as WorkCategory)
+        ? (raw.workCategory as WorkCategory)
+        : "unclassified",
   };
 }
 

@@ -94,6 +94,7 @@ export async function POST(request: Request) {
     country: parsed.value.country ?? null,
     assigneeId: parsed.value.assigneeId ?? null,
     status: parsed.value.status ?? "confirmed",
+    workCategory: parsed.value.workCategory ?? "unclassified",
   };
   const crossError = checkCrossFields(fields);
   if (crossError) return errorResponse(400, "VALIDATION_ERROR", crossError);

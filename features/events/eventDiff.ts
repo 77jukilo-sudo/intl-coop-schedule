@@ -1,5 +1,9 @@
 // 동시 수정 때 "다른 사람이 저장한 최신 내용"과 "내가 입력한 내용"을 항목별로 비교한다.
-import { EVENT_STATUS_LABEL, type ScheduleEvent } from "../../types/schedule";
+import {
+  EVENT_STATUS_LABEL,
+  WORK_CATEGORY_LABEL,
+  type ScheduleEvent,
+} from "../../types/schedule";
 import type { EventFields } from "./eventInput";
 
 export type WhoChanged = "both" | "theirs" | "mine";
@@ -28,6 +32,7 @@ function snapshotOf(
     장소: [fields.city, fields.country].filter(Boolean).join(", ") || "미정",
     담당자: memberName(fields.assigneeId),
     상태: EVENT_STATUS_LABEL[fields.status],
+    업무성격: WORK_CATEGORY_LABEL[fields.workCategory],
   };
 }
 
@@ -43,6 +48,7 @@ export function eventToFields(event: ScheduleEvent): EventFields {
     country: event.country,
     assigneeId: event.assigneeId,
     status: event.status,
+    workCategory: event.workCategory,
   };
 }
 
