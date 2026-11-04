@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "../../app/login/actions";
+import type { ScheduleEvent } from "../../types/schedule";
+import { formatShortDay } from "../calendar/dateUtils";
+import { applyChange } from "../events/eventApi";
 import { ImagePrepError, prepareImage } from "./imagePrep";
 import {
   FILE_INPUT_ACCEPT,
@@ -21,6 +24,33 @@ interface Item {
   message: string | null;
   // 올라간 일정 목록 (결과를 눈으로 확인할 수 있게 보여 준다)
   found: FoundEvent[];
+  // "변경으로 반영할까요?" 질문 목록 (비슷한 기존 일정이 있을 때)
+  proposals: ProposalState[];
+}
+
+// 새 문서에서 읽은 내용과 비슷한 기존 일정 한 쌍 (서버가 찾아 준다)
+interface Proposal {
+  newId: string; // 새 문서에서 생긴 일정 (지금은 별개 일정으로 달력에 있다)
+  incoming: PlaceTimeFields;
+  existing: ScheduleEvent; // 비슷한 기존 일정
+}
+
+// 질문 한 건의 진행 상태: ask(답 기다림) / merged(변경으로 반영함) / kept(별개 일정으로 둠)
+interface ProposalState extends Proposal {
+  decision: "ask" | "merged" | "kept";
+  busy: boolean;
+  error: string | null;
+}
+
+// 비교해서 보여 줄 항목 (새 일정·기존 일정이 함께 갖고 있는 것)
+interface PlaceTimeFields {
+  title: string;
+  startDate: string | null;
+  endDate: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  city: string | null;
+  country: string | null;
 }
 
 // 올라간 일정 한 줄 (optionNo가 있으면 1안·2안 중 하나)
@@ -46,9 +76,26 @@ interface UploadResult {
   undatedCount: number;
   truncated: boolean;
   events: FoundEvent[];
+  proposals: Proposal[];
 }
 
 let nextItemId = 1;
+
+// 한 줄 요약: "행사명 · 11월 12일 (목) ~ 11월 14일 (토) · 09:00~11:00 · 서울, 대한민국"
+function describe(fields: PlaceTimeFields): string {
+  const date = fields.startDate
+    ? fields.endDate && fields.endDate !== fields.startDate
+      ? `${formatShortDay(fields.startDate)} ~ ${formatShortDay(fields.endDate)}`
+      : formatShortDay(fields.startDate)
+    : "날짜 미정";
+  const time = fields.startTime
+    ? fields.endTime
+      ? `${fields.startTime}~${fields.endTime}`
+      : fields.startTime
+    : null;
+  const place = [fields.city, fields.country].filter(Boolean).join(", ");
+  return [fields.title, date, time, place || null].filter(Boolean).join(" · ");
+}
 
 // 문서 올리기(팝업): 보고자료(PDF·Word·사진)를 골라 올린다.
 // 서버에서 AI가 문서를 읽어 일정을 찾고, 달력에 "확인 전(회색)"으로 올린다.
@@ -90,13 +137,51 @@ export default function UploadPanel({
         status: "ready" as const,
         message: null,
         found: [],
+        proposals: [],
       })),
     );
   }
 
+  // 질문 한 건의 상태를 바꾼다.
+  function patchProposal(itemId: number, newId: string, patch: Partial<ProposalState>) {
+    setItems((list) =>
+      list.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              proposals: item.proposals.map((p) => (p.newId === newId ? { ...p, ...patch } : p)),
+            }
+          : item,
+      ),
+    );
+  }
+
+  // "변경으로 반영": 기존 일정에 새 내용을 반영하고 새 일정은 숨긴다.
+  async function handleMerge(itemId: number, proposal: ProposalState) {
+    if (proposal.busy) return;
+    patchProposal(itemId, proposal.newId, { busy: true, error: null });
+    const result = await applyChange(proposal.existing.id, proposal.existing.version, proposal.newId);
+    if (result.ok) {
+      patchProposal(itemId, proposal.newId, { busy: false, decision: "merged" });
+      onExtracted(); // 달력을 새로 불러온다
+      return;
+    }
+    if (result.kind === "conflict") {
+      // 다른 사람이 먼저 고쳤다. 최신 내용으로 바꿔 보여 주고 다시 판단하게 한다.
+      patchProposal(itemId, proposal.newId, {
+        busy: false,
+        error: "방금 다른 사람이 기존 일정을 고쳤습니다. 최신 내용으로 바꿨으니 다시 확인해 주세요.",
+        ...(result.latest ? { existing: result.latest } : {}),
+      });
+      onExtracted();
+      return;
+    }
+    patchProposal(itemId, proposal.newId, { busy: false, error: result.message });
+  }
+
   // 파일을 하나씩 차례로 올린다. (한 번에 보낼 수 있는 크기에 제한이 있기 때문)
   async function uploadOne(item: Item) {
-    patchItem(item.id, { status: "working", message: null, found: [] });
+    patchItem(item.id, { status: "working", message: null, found: [], proposals: [] });
 
     let toSend = item.file;
     try {
@@ -141,10 +226,19 @@ export default function UploadPanel({
         if (result.truncated) {
           parts.push("문서가 길어 앞부분만 읽었습니다");
         }
+        if (result.proposals.length > 0) {
+          parts.push(`비슷한 기존 일정 ${result.proposals.length}건이 있어 변경 여부를 묻습니다`);
+        }
         patchItem(item.id, {
           status: "done",
           message: parts.join(" · "),
           found: result.events,
+          proposals: result.proposals.map((p) => ({
+            ...p,
+            decision: "ask" as const,
+            busy: false,
+            error: null,
+          })),
         });
         if (result.createdCount > 0) onExtracted();
       } else {
@@ -277,6 +371,65 @@ export default function UploadPanel({
                       </li>
                     ))}
                   </ul>
+                ) : null}
+
+                {/* 비슷한 기존 일정이 있으면 변경으로 반영할지 묻는다. 답하기 전에는 아무것도 합치지 않는다. */}
+                {item.proposals.length > 0 ? (
+                  <div className="mt-2 flex flex-col gap-2">
+                    <p className="text-xs font-semibold">변경으로 반영할까요?</p>
+                    {item.proposals.map((p) => (
+                      <div
+                        key={p.newId}
+                        className="rounded-lg border border-foreground/15 bg-foreground/5 p-2.5 text-xs"
+                      >
+                        <p className="break-words">
+                          <span className="font-semibold">기존 일정</span> {describe(p.existing)}
+                        </p>
+                        <p className="mt-1 break-words">
+                          <span className="font-semibold">새 문서</span> {describe(p.incoming)}
+                        </p>
+                        {p.decision === "ask" ? (
+                          <>
+                            <p className="mt-1.5 text-foreground/70">
+                              같은 행사가 바뀐 것이면 &lsquo;변경으로 반영&rsquo;을 눌러 주세요. 기존
+                              일정이 새 내용으로 바뀌고 새 일정은 달력에서 숨겨집니다. 다른 행사이거나
+                              담당자가 달라 둘 다 필요하면 &lsquo;별개 일정으로 두기&rsquo;를 눌러
+                              주세요.
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={p.busy}
+                                onClick={() => void handleMerge(item.id, p)}
+                                className="h-10 rounded-lg bg-foreground px-3 text-sm font-medium text-background disabled:opacity-60"
+                              >
+                                {p.busy ? "반영 중..." : "변경으로 반영"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={p.busy}
+                                onClick={() => patchProposal(item.id, p.newId, { decision: "kept" })}
+                                className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+                              >
+                                별개 일정으로 두기
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <p role="status" className="mt-1.5 font-medium">
+                            {p.decision === "merged"
+                              ? "기존 일정에 변경을 반영했습니다."
+                              : "별개 일정으로 두었습니다."}
+                          </p>
+                        )}
+                        {p.error ? (
+                          <p role="alert" className="mt-1.5 text-red-600">
+                            {p.error}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
                 ) : null}
               </li>
             ))}

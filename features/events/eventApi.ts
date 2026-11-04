@@ -66,6 +66,15 @@ export function changeOption(
   return send(`/api/events/${id}/options`, "POST", { action, expectedVersion });
 }
 
+// 변경으로 반영: 다시 올린 문서의 새 일정(newId)을 기존 일정(id)의 변경으로 반영하고 새 일정은 숨긴다.
+export function applyChange(
+  id: string,
+  expectedVersion: number,
+  newId: string,
+): Promise<SaveResult> {
+  return send(`/api/events/${id}/merge`, "POST", { newId, expectedVersion });
+}
+
 // 같은 묶음의 안 목록 (숨겨진 안 포함). 실패하면 null.
 export async function fetchOptions(id: string): Promise<ScheduleEvent[] | null> {
   try {

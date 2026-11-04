@@ -5,6 +5,9 @@ import {
   extractEventsFromDocument,
   type ExtractErrorCode,
 } from "../../../lib/server/extractEvents";
+import { findSimilarEvents, type SimilarMatch } from "../../../lib/server/similarEvents";
+import { addDays, todayKey } from "../../../features/calendar/dateUtils";
+import { rowToEvent, type EventRow } from "../../../features/events/eventRow";
 import {
   MAX_UPLOAD_BYTES,
   detectKind,
@@ -13,6 +16,9 @@ import {
 
 // 문서를 AI가 읽는 시간까지 포함해서 최대 1분 안에 끝내야 한다. (PRD: 업로드 후 1분 이내)
 export const maxDuration = 60;
+
+// 변경 여부를 비교할 기존 일정의 범위: 오늘로부터 이 일수 이전까지(와 날짜 미정 일정)
+const SIMILAR_LOOKBACK_DAYS = 60;
 
 function errorResponse(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -114,13 +120,54 @@ export async function POST(request: Request) {
     source_name: sourceName,
   }));
 
+  // 비슷한 기존 일정 후보를 먼저 찾는다. (저장하기 전의 일정 목록과 비교해야 새 일정끼리 짝이 되지 않는다)
+  // 후보 찾기에 실패해도 업로드 자체는 계속한다. 질문만 못 하는 것이다.
+  let matches: SimilarMatch[] = [];
   if (rows.length > 0) {
-    const { error } = await supabase.from("events").insert(rows);
+    const since = addDays(todayKey(), -SIMILAR_LOOKBACK_DAYS);
+    const { data: existingRows } = await supabase
+      .from("events")
+      .select("*")
+      .is("hidden_at", null)
+      .is("group_id", null)
+      .neq("status", "cancelled")
+      .or(`start_date.is.null,start_date.gte.${since}`)
+      .limit(2000);
+    matches = findSimilarEvents(extraction.events, (existingRows ?? []) as EventRow[]);
+  }
+
+  let savedIds: string[] = [];
+  if (rows.length > 0) {
+    const { data: saved, error } = await supabase.from("events").insert(rows).select("id");
     if (error) {
       console.error(`[upload] 일정 저장 오류: ${error.code ?? "unknown"}`);
       return errorResponse(500, "INTERNAL_ERROR", "일정을 저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.");
     }
+    savedIds = (saved ?? []).map((row) => row.id as string);
   }
+
+  // "변경으로 반영할까요?" 질문 목록. 여기서는 아무것도 합치지 않는다. 새 일정은 이미 별개 일정으로 저장되어 있고,
+  // 부원이 "변경으로 반영"을 눌렀을 때만 기존 일정에 반영하고 새 일정을 숨긴다.
+  const proposals = matches.flatMap((match) => {
+    const newId = savedIds[match.incomingIndex];
+    if (!newId) return [];
+    const incoming = extraction.events[match.incomingIndex];
+    return [
+      {
+        newId,
+        incoming: {
+          title: incoming.title,
+          startDate: incoming.startDate,
+          endDate: incoming.endDate,
+          startTime: incoming.startTime,
+          endTime: incoming.endTime,
+          city: incoming.city,
+          country: incoming.country,
+        },
+        existing: rowToEvent(match.existing),
+      },
+    ];
+  });
 
   return NextResponse.json({
     data: {
@@ -130,6 +177,7 @@ export async function POST(request: Request) {
       createdCount: rows.length,
       undatedCount: extraction.events.filter((e) => !e.startDate).length,
       truncated: extraction.truncated,
+      proposals,
       // 화면에 "이런 일정을 올렸습니다"를 보여 주기 위한 목록 (최대 50건)
       events: extraction.events.slice(0, 50).map((e) => ({
         title: e.title,
