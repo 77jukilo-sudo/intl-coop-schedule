@@ -14,6 +14,7 @@ export interface EventRow {
   title: string;
   start_date: string | null;
   end_date: string | null;
+  date_note: string | null;
   start_time: string | null;
   end_time: string | null;
   is_overseas: boolean;
@@ -45,6 +46,7 @@ export function rowToEvent(row: EventRow): ScheduleEvent {
     title: row.title,
     startDate: row.start_date,
     endDate: row.end_date,
+    dateNote: row.date_note,
     startTime: toHourMinute(row.start_time),
     endTime: toHourMinute(row.end_time),
     isOverseas: row.is_overseas,

@@ -113,6 +113,7 @@ interface ScheduleEvent {
   title: string;                 // 행사명 (필수)
   startDate: string | null;      // 날짜 (null이면 "날짜 미정" 목록)
   endDate: string | null;        // 여러 날 출장이면 종료일
+  dateNote: string | null;       // 날짜를 모를 때 문서에 적힌 원래 표현 (예: "11월 중순") — 작업 13번에서 추가
   startTime: string | null;      // 시간 (국내=한국 시각, 외국=현지 시각)
   endTime: string | null;
   isOverseas: boolean;           // true면 현지 시각이라는 표시를 함께 보여 줌

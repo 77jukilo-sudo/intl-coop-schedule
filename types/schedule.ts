@@ -67,6 +67,8 @@ export interface ScheduleEvent {
   // 날짜가 null이면 "날짜 미정" 목록에 들어간다. (예: "11월 중순", "추후 통보")
   startDate: string | null; // YYYY-MM-DD
   endDate: string | null; // 여러 날 출장이면 종료일
+  // 날짜를 정확히 알 수 없을 때 문서에 적힌 원래 표현 (예: "11월 중순", "추후 통보"). 날짜 미정 일정에만 쓴다.
+  dateNote: string | null;
   // 시간: 국내 일정은 한국 시각, 외국 일정은 현지 시각
   startTime: string | null; // HH:mm
   endTime: string | null;

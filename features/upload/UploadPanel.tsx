@@ -19,21 +19,38 @@ interface Item {
   file: File;
   status: ItemStatus;
   message: string | null;
+  // 올라간 일정 목록 (결과를 눈으로 확인할 수 있게 보여 준다)
+  found: { title: string; startDate: string | null; dateNote: string | null }[];
 }
 
 const STATUS_LABEL: Record<ItemStatus, string> = {
   ready: "올리기 전",
-  working: "확인 중...",
-  done: "확인 완료",
+  working: "일정 찾는 중...",
+  done: "완료",
   error: "올리지 못함",
 };
+
+// 서버가 돌려주는 결과 (app/api/upload/route.ts)
+interface UploadResult {
+  kind: UploadKind;
+  sizeBytes: number;
+  createdCount: number;
+  undatedCount: number;
+  truncated: boolean;
+  events: { title: string; startDate: string | null; dateNote: string | null }[];
+}
 
 let nextItemId = 1;
 
 // 문서 올리기(팝업): 보고자료(PDF·Word·사진)를 골라 올린다.
-// 지금 단계(작업 12)는 파일을 받아 형식과 크기를 확인하는 데까지 한다.
-// AI가 일정을 찾아 달력에 올리는 기능은 작업 13번에서 이어 붙인다.
-export default function UploadPanel({ onClose }: { onClose: () => void }) {
+// 서버에서 AI가 문서를 읽어 일정을 찾고, 달력에 "확인 전(회색)"으로 올린다.
+export default function UploadPanel({
+  onClose,
+  onExtracted,
+}: {
+  onClose: () => void;
+  onExtracted: () => void; // 일정이 새로 올라갔을 때 달력을 새로 불러온다
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [running, setRunning] = useState(false);
@@ -64,13 +81,14 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
         file,
         status: "ready" as const,
         message: null,
+        found: [],
       })),
     );
   }
 
   // 파일을 하나씩 차례로 올린다. (한 번에 보낼 수 있는 크기에 제한이 있기 때문)
   async function uploadOne(item: Item) {
-    patchItem(item.id, { status: "working", message: null });
+    patchItem(item.id, { status: "working", message: null, found: [] });
 
     let toSend = item.file;
     try {
@@ -97,15 +115,30 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
         return;
       }
       const body = (await response.json().catch(() => null)) as {
-        data?: { kind: UploadKind; sizeBytes: number };
+        data?: UploadResult;
         error?: { message: string };
       } | null;
 
       if (response.ok && body?.data) {
+        const result = body.data;
+        const parts = [
+          `${UPLOAD_KIND_LABEL[result.kind]} · ${formatBytes(result.sizeBytes)}`,
+          result.createdCount > 0
+            ? `일정 ${result.createdCount}건을 달력에 올렸습니다 (확인 전)`
+            : "이 문서에서 일정을 찾지 못했습니다",
+        ];
+        if (result.undatedCount > 0) {
+          parts.push(`그중 날짜를 알 수 없는 일정 ${result.undatedCount}건`);
+        }
+        if (result.truncated) {
+          parts.push("문서가 길어 앞부분만 읽었습니다");
+        }
         patchItem(item.id, {
           status: "done",
-          message: `${UPLOAD_KIND_LABEL[body.data.kind]} · ${formatBytes(body.data.sizeBytes)}`,
+          message: parts.join(" · "),
+          found: result.events,
         });
+        if (result.createdCount > 0) onExtracted();
       } else {
         patchItem(item.id, {
           status: "error",
@@ -168,9 +201,10 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         <p className="text-sm text-foreground/70">
-          PDF, Word(.docx), 사진(JPEG·PNG·WebP)을 올릴 수 있습니다. 파일 하나는
-          {" "}{formatBytes(MAX_UPLOAD_BYTES)} 이하이고, 사진은 자동으로 줄여서
-          올립니다. 한글(.hwp) 문서는 PDF로 저장해서 올려 주세요.
+          PDF, Word(.docx), 사진(JPEG·PNG·WebP)을 올리면 AI가 일정을 찾아 달력에
+          회색(확인 전)으로 올려 줍니다. 파일 하나는 {formatBytes(MAX_UPLOAD_BYTES)}{" "}
+          이하이고, 사진은 자동으로 줄여서 올립니다. 한글(.hwp) 문서는 PDF로
+          저장해서 올려 주세요.
         </p>
 
         <div>
@@ -220,6 +254,19 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
                 <div className="mt-0.5 text-xs text-foreground/60">
                   {item.message ?? `선택한 크기 ${formatBytes(item.file.size)}`}
                 </div>
+                {item.found.length > 0 ? (
+                  <ul className="mt-1.5 flex max-h-32 flex-col gap-0.5 overflow-y-auto text-xs">
+                    {item.found.map((event, index) => (
+                      <li key={index} className="break-words">
+                        <span className="text-foreground/60">
+                          {event.startDate ??
+                            (event.dateNote ? `날짜 미정(${event.dateNote})` : "날짜 미정")}
+                        </span>{" "}
+                        {event.title}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -227,8 +274,8 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
 
         {doneCount > 0 && pendingCount === 0 && !running ? (
           <p role="status" className="text-sm text-foreground/80">
-            파일 확인을 마쳤습니다. AI가 일정을 찾아 달력에 올리는 기능은 아직
-            준비 중입니다.
+            달력에 회색(확인 전)으로 올라간 일정을 눌러 내용을 확인하고, 맞으면
+            &lsquo;확정&rsquo;을 눌러 주세요. 틀린 부분은 &lsquo;수정&rsquo;으로 고칠 수 있습니다.
           </p>
         ) : null}
 

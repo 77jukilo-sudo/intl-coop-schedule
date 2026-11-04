@@ -355,7 +355,12 @@ export default function CalendarView() {
       ) : null}
 
       {/* 문서 올리기: 보고자료(PDF·Word·사진)를 올린다 */}
-      {uploadOpen ? <UploadPanel onClose={() => setUploadOpen(false)} /> : null}
+      {uploadOpen ? (
+        <UploadPanel
+          onClose={() => setUploadOpen(false)}
+          onExtracted={refreshQuietly}
+        />
+      ) : null}
 
       {/* 일정 입력 폼: 새 일정 추가 또는 기존 일정 수정 */}
       {form ? (

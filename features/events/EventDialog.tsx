@@ -13,7 +13,10 @@ import HistoryList from "./HistoryList";
 
 // 날짜 표시: 하루짜리는 그 날짜, 여러 날이면 "시작 ~ 끝"
 function formatDateRange(event: ScheduleEvent): string {
-  if (!event.startDate) return "날짜 미정";
+  if (!event.startDate) {
+    // 문서에 적힌 원래 표현이 있으면 함께 보여 준다. (예: 날짜 미정 (문서에는 "11월 중순"))
+    return event.dateNote ? `날짜 미정 (문서에는 "${event.dateNote}")` : "날짜 미정";
+  }
   if (!event.endDate || event.endDate === event.startDate) {
     return formatDayTitle(event.startDate);
   }
