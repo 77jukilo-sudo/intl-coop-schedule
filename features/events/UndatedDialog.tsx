@@ -60,7 +60,7 @@ function UndatedRow({
         <button
           type="button"
           onClick={() => onOpenEvent(event)}
-          className="min-w-0 break-words text-left font-medium underline-offset-2 hover:underline"
+          className="min-h-11 min-w-0 break-words py-2 text-left font-medium underline-offset-2 hover:underline"
         >
           {event.title}
         </button>
@@ -157,7 +157,7 @@ export default function UndatedDialog({
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="닫기"
-            className="h-9 w-9 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
           >
             ✕
           </button>

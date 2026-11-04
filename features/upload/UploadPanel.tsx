@@ -284,7 +284,7 @@ export default function UploadPanel({
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="닫기"
-            className="h-9 w-9 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
           >
             ✕
           </button>
@@ -401,7 +401,7 @@ export default function UploadPanel({
                                 type="button"
                                 disabled={p.busy}
                                 onClick={() => void handleMerge(item.id, p)}
-                                className="h-10 rounded-lg bg-foreground px-3 text-sm font-medium text-background disabled:opacity-60"
+                                className="h-11 rounded-lg bg-foreground px-3 text-sm font-medium text-background disabled:opacity-60"
                               >
                                 {p.busy ? "반영 중..." : "변경으로 반영"}
                               </button>
@@ -409,7 +409,7 @@ export default function UploadPanel({
                                 type="button"
                                 disabled={p.busy}
                                 onClick={() => patchProposal(item.id, p.newId, { decision: "kept" })}
-                                className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+                                className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
                               >
                                 별개 일정으로 두기
                               </button>

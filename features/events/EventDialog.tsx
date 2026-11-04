@@ -180,7 +180,7 @@ export default function EventDialog({
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="닫기"
-            className="h-9 w-9 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
           >
             ✕
           </button>
@@ -264,7 +264,7 @@ export default function EventDialog({
                 type="button"
                 disabled={busy}
                 onClick={() => setConfirmingChoice(false)}
-                className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+                className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
               >
                 돌아가기
               </button>
@@ -272,7 +272,7 @@ export default function EventDialog({
                 type="button"
                 disabled={busy}
                 onClick={() => void runOption("choose")}
-                className="h-10 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+                className="h-11 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
               >
                 확정하고 나머지 숨기기
               </button>
@@ -286,7 +286,7 @@ export default function EventDialog({
             type="button"
             onClick={() => setShowHistory((v) => !v)}
             aria-expanded={showHistory}
-            className="text-sm underline"
+            className="inline-flex min-h-11 items-center text-sm underline"
           >
             {showHistory ? "수정 이력 닫기" : "수정 이력 보기"}
           </button>
@@ -304,7 +304,7 @@ export default function EventDialog({
               type="button"
               disabled={busy}
               onClick={() => void changeStatus("tentative")}
-              className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+              className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
             >
               취소 해제
             </button>
@@ -313,7 +313,7 @@ export default function EventDialog({
               type="button"
               disabled={busy}
               onClick={cancelEvent}
-              className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+              className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
             >
               취소 처리
             </button>
@@ -325,7 +325,7 @@ export default function EventDialog({
               onEdit(event);
               dialogRef.current?.close();
             }}
-            className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+            className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
           >
             수정
           </button>
@@ -334,7 +334,7 @@ export default function EventDialog({
               type="button"
               disabled={busy}
               onClick={() => void runOption("reopen")}
-              className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+              className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
             >
               확정 되돌리고 다른 안 다시 보기
             </button>
@@ -344,7 +344,7 @@ export default function EventDialog({
               type="button"
               disabled={busy || optionsLoading || optionsFailed}
               onClick={handleConfirmClick}
-              className="h-10 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+              className="h-11 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
             >
               확정
             </button>

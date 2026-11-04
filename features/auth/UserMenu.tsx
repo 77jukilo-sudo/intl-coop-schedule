@@ -25,7 +25,7 @@ export default async function UserMenu() {
       <form action={signOut}>
         <button
           type="submit"
-          className="h-9 rounded-lg border border-foreground/20 px-3 hover:bg-foreground/5"
+          className="h-11 rounded-lg border border-foreground/20 px-3 hover:bg-foreground/5"
         >
           로그아웃
         </button>

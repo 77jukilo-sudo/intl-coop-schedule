@@ -170,7 +170,7 @@ export default function EventForm({
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="닫기"
-            className="h-9 w-9 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
           >
             ✕
           </button>
@@ -222,7 +222,7 @@ export default function EventForm({
               <button
                 type="button"
                 onClick={useLatest}
-                className="h-10 rounded-lg border border-foreground/20 px-3 hover:bg-foreground/5"
+                className="h-11 rounded-lg border border-foreground/20 px-3 hover:bg-foreground/5"
               >
                 최신 내용으로 바꾸기
               </button>
@@ -230,7 +230,7 @@ export default function EventForm({
                 type="button"
                 onClick={() => void overwriteWithMine()}
                 disabled={saving}
-                className="h-10 rounded-lg bg-foreground px-3 font-medium text-background disabled:opacity-60"
+                className="h-11 rounded-lg bg-foreground px-3 font-medium text-background disabled:opacity-60"
               >
                 내 입력으로 덮어쓰기
               </button>
@@ -294,12 +294,12 @@ export default function EventForm({
           </label>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex min-h-11 items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={isOverseas}
             onChange={(e) => setIsOverseas(e.target.checked)}
-            className="h-4 w-4"
+            className="h-5 w-5"
           />
           외국에서 진행 (시간은 현지 시각으로 입력)
         </label>

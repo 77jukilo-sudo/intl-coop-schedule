@@ -107,7 +107,7 @@ export default function MonthGrid({
                       e.stopPropagation();
                       onShowDay(day);
                     }}
-                    className="px-1 text-left text-[10px] leading-4 text-foreground/60 underline"
+                    className="px-1 py-1.5 text-left text-xs leading-4 text-foreground/70 underline"
                   >
                     +{moreNarrow}개
                   </button>

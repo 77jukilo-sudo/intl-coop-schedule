@@ -230,7 +230,7 @@ export default function CalendarView() {
             type="button"
             onClick={() => move(-1)}
             aria-label={`이전 ${moveLabel}`}
-            className="h-9 w-9 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 rounded-lg border border-foreground/20 hover:bg-foreground/5"
           >
             ‹
           </button>
@@ -241,7 +241,7 @@ export default function CalendarView() {
             type="button"
             onClick={() => move(1)}
             aria-label={`다음 ${moveLabel}`}
-            className="h-9 w-9 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 rounded-lg border border-foreground/20 hover:bg-foreground/5"
           >
             ›
           </button>
@@ -251,21 +251,21 @@ export default function CalendarView() {
           <button
             type="button"
             onClick={() => setUndatedOpen(true)}
-            className="h-9 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
+            className="h-11 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
           >
             날짜 미정 ({undated.length})
           </button>
           <button
             type="button"
             onClick={() => setUploadOpen(true)}
-            className="h-9 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
+            className="h-11 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
           >
             문서 올리기
           </button>
           <button
             type="button"
             onClick={() => setForm({ event: null })}
-            className="h-9 rounded-lg bg-foreground px-3 text-sm font-medium text-background"
+            className="h-11 rounded-lg bg-foreground px-3 text-sm font-medium text-background"
           >
             + 일정 추가
           </button>
@@ -280,7 +280,7 @@ export default function CalendarView() {
                 type="button"
                 onClick={() => changeView(value)}
                 aria-pressed={view === value}
-                className={`h-9 px-4 ${
+                className={`h-11 px-4 ${
                   view === value
                     ? "bg-foreground text-background"
                     : "hover:bg-foreground/5"
