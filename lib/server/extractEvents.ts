@@ -20,6 +20,8 @@ const MAX_EVENTS = 200;
 const TITLE_MAX = 200;
 const PLACE_MAX = 100;
 const DATE_NOTE_MAX = 200;
+const OPTION_GROUP_MAX = 100;
+const OPTION_NO_MAX = 20;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // AI가 돌려준 일정 한 건 (검사를 마친 값)
@@ -33,6 +35,9 @@ export interface ExtractedEvent {
   isOverseas: boolean;
   city: string | null;
   country: string | null;
+  // 1안·2안: 같은 행사의 후보안이면 공통 이름(optionGroup)과 안 번호(optionNo)가 함께 들어간다.
+  optionGroup: string | null;
+  optionNo: number | null;
 }
 
 export interface ExtractionResult {
@@ -71,7 +76,8 @@ const SYSTEM_RULES = (today: string) => `당신은 국제협력부 보고자료�
 9. 같은 일정이 문서에 여러 번 나오면 한 번만 적습니다.
 10. 담당자는 뽑지 않습니다. 여권번호, 주민번호, 연락처, 항공권 예약번호 같은 개인 식별 정보는 결과에 절대 넣지 않습니다.
 11. 읽을 수 있는 글자가 거의 없는 문서(빈 문서, 흐린 사진, 깨진 글자)이면 readable을 false로 하고 events를 빈 목록으로 합니다.
-12. 글자는 읽을 수 있지만 일정이 하나도 없으면 readable을 true로 하고 events를 빈 목록으로 합니다.`;
+12. 글자는 읽을 수 있지만 일정이 하나도 없으면 readable을 true로 하고 events를 빈 목록으로 합니다.
+13. 같은 행사의 후보안이 여럿이면(예: "1안 11월 12일 / 2안 11월 19일", "A안·B안") 각 안을 별개의 일정으로 모두 적고, optionGroup에는 그 행사를 가리키는 짧은 공통 이름(안 번호는 빼고)을, optionNo에는 안 번호(1, 2, 3...)를 적습니다. A안·B안은 1·2번으로 바꿔 적습니다. 서로 다른 행사의 안은 optionGroup이 서로 달라야 합니다. 후보안이 아닌 일반 일정은 optionGroup과 optionNo를 모두 null로 둡니다. 안이 하나뿐이면 둘 다 null입니다.`;
 
 const EVENTS_SCHEMA = {
   type: "object",
@@ -94,6 +100,8 @@ const EVENTS_SCHEMA = {
           "isOverseas",
           "city",
           "country",
+          "optionGroup",
+          "optionNo",
         ],
         properties: {
           title: { type: "string" },
@@ -105,6 +113,8 @@ const EVENTS_SCHEMA = {
           isOverseas: { type: "boolean" },
           city: { type: ["string", "null"] },
           country: { type: ["string", "null"] },
+          optionGroup: { type: ["string", "null"] },
+          optionNo: { type: ["integer", "null"] },
         },
       },
     },
@@ -121,6 +131,8 @@ interface RawEvent {
   isOverseas?: unknown;
   city?: unknown;
   country?: unknown;
+  optionGroup?: unknown;
+  optionNo?: unknown;
 }
 
 const asText = (value: unknown, max: number): string | null => {
@@ -161,6 +173,17 @@ export function sanitizeEvent(raw: RawEvent): ExtractedEvent | null {
   // 날짜가 정확하지 않을 때만 문서의 원래 표현을 남긴다.
   const dateNote = startDate ? null : asText(raw.dateText, DATE_NOTE_MAX);
 
+  // 안 번호는 1~OPTION_NO_MAX의 정수이고 공통 이름과 함께 있을 때만 인정한다. (하나만 있으면 둘 다 버린다)
+  const optionGroup = asText(raw.optionGroup, OPTION_GROUP_MAX);
+  const optionNo =
+    typeof raw.optionNo === "number" &&
+    Number.isInteger(raw.optionNo) &&
+    raw.optionNo >= 1 &&
+    raw.optionNo <= OPTION_NO_MAX
+      ? raw.optionNo
+      : null;
+  const hasOption = optionGroup !== null && optionNo !== null;
+
   return {
     title,
     startDate,
@@ -171,14 +194,42 @@ export function sanitizeEvent(raw: RawEvent): ExtractedEvent | null {
     isOverseas: raw.isOverseas === true,
     city: asText(raw.city, PLACE_MAX),
     country: asText(raw.country, PLACE_MAX),
+    optionGroup: hasOption ? optionGroup : null,
+    optionNo: hasOption ? optionNo : null,
   };
+}
+
+// 안 묶음 점검: 같은 묶음에 일정이 둘 이상이고 안 번호가 겹치지 않을 때만 1안·2안으로 인정한다.
+// 그렇지 않으면 억지로 묶지 않고 안 표시를 뺀 일반 일정으로 둔다. (잘못 묶어 일정이 숨는 일을 막기 위해서)
+export function validateOptionGroups(events: ExtractedEvent[]): ExtractedEvent[] {
+  const numbersByGroup = new Map<string, number[]>();
+  for (const event of events) {
+    if (event.optionGroup === null || event.optionNo === null) continue;
+    const list = numbersByGroup.get(event.optionGroup) ?? [];
+    list.push(event.optionNo);
+    numbersByGroup.set(event.optionGroup, list);
+  }
+  return events.map((event) => {
+    if (event.optionGroup === null) return event;
+    const numbers = numbersByGroup.get(event.optionGroup) ?? [];
+    const valid = numbers.length >= 2 && new Set(numbers).size === numbers.length;
+    return valid ? event : { ...event, optionGroup: null, optionNo: null };
+  });
 }
 
 function dedupe(events: ExtractedEvent[]): ExtractedEvent[] {
   const seen = new Set<string>();
   const out: ExtractedEvent[] = [];
   for (const event of events) {
-    const key = [event.title, event.startDate, event.endDate, event.startTime, event.dateNote].join("|");
+    const key = [
+      event.title,
+      event.startDate,
+      event.endDate,
+      event.startTime,
+      event.dateNote,
+      event.optionGroup,
+      event.optionNo,
+    ].join("|");
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(event);
@@ -342,11 +393,13 @@ export async function extractEventsFromDocument(input: {
   }
 
   const rawEvents = Array.isArray(parsed.events) ? (parsed.events as RawEvent[]) : [];
-  const events = dedupe(
-    rawEvents
-      .map(sanitizeEvent)
-      .filter((event): event is ExtractedEvent => event !== null),
-  ).slice(0, MAX_EVENTS);
+  const events = validateOptionGroups(
+    dedupe(
+      rawEvents
+        .map(sanitizeEvent)
+        .filter((event): event is ExtractedEvent => event !== null),
+    ).slice(0, MAX_EVENTS),
+  );
 
   return { events, truncated };
 }

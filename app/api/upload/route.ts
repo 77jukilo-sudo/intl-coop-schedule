@@ -91,7 +91,16 @@ export async function POST(request: Request) {
     file.name.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 200) || "이름 없는 문서";
 
   // 추출한 일정은 모두 "확인 전(회색)"으로 저장한다. 부원이 확인해 확정하기 전에는 확정으로 올리지 않는다.
+  // 1안·2안은 같은 묶음 번호(group_id)로 이어 둔다. 안은 확정 전이라 "미확정(파란색)"으로 저장한다.
+  const groupIds = new Map<string, string>();
+  const groupIdOf = (name: string | null) => {
+    if (name === null) return null;
+    if (!groupIds.has(name)) groupIds.set(name, crypto.randomUUID());
+    return groupIds.get(name) ?? null;
+  };
   const rows = extraction.events.map((event) => ({
+    group_id: groupIdOf(event.optionGroup),
+    option_no: event.optionNo,
     title: event.title,
     start_date: event.startDate,
     end_date: event.endDate,
@@ -101,7 +110,7 @@ export async function POST(request: Request) {
     is_overseas: event.isOverseas,
     city: event.city,
     country: event.country,
-    status: "pending_review",
+    status: event.optionNo !== null ? "tentative" : "pending_review",
     source_name: sourceName,
   }));
 
@@ -126,6 +135,7 @@ export async function POST(request: Request) {
         title: e.title,
         startDate: e.startDate,
         dateNote: e.dateNote,
+        optionNo: e.optionNo,
       })),
     },
   });

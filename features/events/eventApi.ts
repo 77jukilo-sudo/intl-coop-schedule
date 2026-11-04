@@ -57,6 +57,27 @@ export function createEvent(fields: EventFields): Promise<SaveResult> {
   return send("/api/events", "POST", fields);
 }
 
+// 1안·2안 처리: 이 안을 확정하고 나머지 안을 숨기거나(choose), 확정을 되돌려 숨긴 안을 다시 보이게 한다(reopen).
+export function changeOption(
+  id: string,
+  expectedVersion: number,
+  action: "choose" | "reopen",
+): Promise<SaveResult> {
+  return send(`/api/events/${id}/options`, "POST", { action, expectedVersion });
+}
+
+// 같은 묶음의 안 목록 (숨겨진 안 포함). 실패하면 null.
+export async function fetchOptions(id: string): Promise<ScheduleEvent[] | null> {
+  try {
+    const response = await fetch(`/api/events/${id}/options`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { data?: ScheduleEvent[] };
+    return body.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // 일정 수정. expectedVersion은 내가 화면에서 본 일정의 버전이다.
 export function updateEvent(
   id: string,

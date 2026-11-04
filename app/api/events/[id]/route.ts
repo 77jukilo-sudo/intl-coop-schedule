@@ -104,6 +104,19 @@ export async function PATCH(
   const crossError = checkCrossFields(merged);
   if (crossError) return errorResponse(400, "VALIDATION_ERROR", crossError);
 
+  // 1안·2안 일정은 나머지 안을 숨기는 일이 함께 필요하므로, 확정은 상세 화면의 "확정" 버튼(안 확정)으로만 한다.
+  if (
+    currentRow.group_id &&
+    parsed.value.status === "confirmed" &&
+    currentRow.status !== "confirmed"
+  ) {
+    return errorResponse(
+      400,
+      "VALIDATION_ERROR",
+      "1안·2안 일정은 상세 화면의 \"확정\" 버튼으로 확정해 주세요. 다른 안이 달력에서 함께 정리됩니다.",
+    );
+  }
+
   // 저장 순간에도 버전이 같은지 다시 확인한다. (읽은 뒤 저장하기 전에 다른 사람이 고쳤을 수 있다)
   const { data: updated, error: updateError } = await supabase
     .from("events")

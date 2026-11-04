@@ -8,7 +8,7 @@ import {
 } from "../../types/schedule";
 import { formatDayTitle, formatShortDay } from "../calendar/dateUtils";
 import { CHIP_CLASS } from "../calendar/statusStyle";
-import { updateEvent } from "./eventApi";
+import { changeOption, fetchOptions, updateEvent, type SaveResult } from "./eventApi";
 import HistoryList from "./HistoryList";
 
 // 날짜 표시: 하루짜리는 그 날짜, 여러 날이면 "시작 ~ 끝"
@@ -64,6 +64,25 @@ export default function EventDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  // 1안·2안: 같은 묶음의 안 목록(숨겨진 안 포함). 불러오는 중이거나 실패하면 null.
+  const [options, setOptions] = useState<ScheduleEvent[] | null>(null);
+  const [optionsFailed, setOptionsFailed] = useState(false);
+  const [confirmingChoice, setConfirmingChoice] = useState(false); // 나머지 안을 숨겨도 되는지 묻는 중
+
+  // 안이 있는 일정이면 다른 안을 불러온다. 일정이 바뀌면(버전이 달라지면) 다시 불러온다.
+  const { id: eventId, groupId, version } = event;
+  useEffect(() => {
+    if (!groupId) return;
+    let cancelled = false;
+    void fetchOptions(eventId).then((list) => {
+      if (cancelled) return;
+      setOptions(list);
+      setOptionsFailed(list === null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, groupId, version]);
 
   // 열릴 때 모달로 띄운다. (바깥은 어두워지고, Esc 키로 닫힌다)
   useEffect(() => {
@@ -77,10 +96,19 @@ export default function EventDialog({
 
   // 상태만 바꾸는 빠른 버튼(확정, 취소 처리, 취소 해제)
   async function changeStatus(next: EventStatus) {
+    await runSave(() => updateEvent(event.id, event.version, { status: next }));
+  }
+
+  // 1안·2안: 이 안을 확정하고 나머지를 숨기거나(choose), 확정을 되돌려 숨긴 안을 다시 보인다(reopen)
+  async function runOption(action: "choose" | "reopen") {
+    await runSave(() => changeOption(event.id, event.version, action));
+  }
+
+  async function runSave(save: () => Promise<SaveResult>) {
     if (busy) return;
     setBusy(true);
     setError(null);
-    const result = await updateEvent(event.id, event.version, { status: next });
+    const result = await save();
     setBusy(false);
     if (result.ok) {
       onChanged();
@@ -90,6 +118,7 @@ export default function EventDialog({
     if (result.kind === "conflict") {
       // 다른 사람이 먼저 고쳤다. 달력과 이 팝업을 최신 내용으로 바꾸고, 확인한 뒤 다시 누르게 한다.
       onStale();
+      setConfirmingChoice(false); // 내용이 바뀌었으니 숨겨질 안을 다시 확인하게 한다
       if (result.latest) onRefresh(result.latest);
       setError(
         "방금 다른 사람이 이 일정을 고쳐서 최신 내용으로 바꿨습니다. 내용을 확인한 뒤 다시 눌러 주세요.",
@@ -107,6 +136,25 @@ export default function EventDialog({
   }
 
   const canConfirm = event.status === "pending_review" || event.status === "tentative";
+
+  // 다른 안: 달력에 보이는 안(확정하면 숨겨질 안)과 이미 숨겨진 안
+  const otherOptions = (options ?? []).filter((o) => o.id !== event.id);
+  const willHide = otherOptions.filter((o) => !o.hiddenAt);
+  const hiddenOptions = otherOptions.filter((o) => o.hiddenAt);
+  const optionLine = (o: ScheduleEvent) =>
+    `${o.optionNo ?? "?"}안 · ${o.startDate ? formatShortDay(o.startDate) : "날짜 미정"} · ${EVENT_STATUS_LABEL[o.status]}`;
+  // 안이 있는 일정은 다른 안 목록을 불러온 뒤에야 확정할 수 있다. (무엇이 숨겨질지 알려 주기 위해서)
+  const optionsLoading = Boolean(event.groupId) && options === null && !optionsFailed;
+
+  function handleConfirmClick() {
+    if (!event.groupId) {
+      void changeStatus("confirmed");
+    } else if (willHide.length > 0) {
+      setConfirmingChoice(true); // 나머지 안이 숨겨지므로 한 번 더 묻는다
+    } else {
+      void runOption("choose");
+    }
+  }
 
   return (
     <dialog
@@ -166,10 +214,66 @@ export default function EventDialog({
           <dd>{event.sourceName}</dd>
         </dl>
 
+        {/* 1안·2안: 같은 행사의 다른 안 */}
+        {event.groupId ? (
+          <div className="rounded-lg border border-foreground/10 p-3 text-sm">
+            <p className="font-medium">같은 행사의 다른 안</p>
+            {optionsFailed ? (
+              <p className="mt-1 text-foreground/60">다른 안을 불러오지 못했습니다. 팝업을 닫았다가 다시 열어 주세요.</p>
+            ) : options === null ? (
+              <p className="mt-1 text-foreground/60">불러오는 중...</p>
+            ) : otherOptions.length === 0 ? (
+              <p className="mt-1 text-foreground/60">다른 안이 없습니다.</p>
+            ) : (
+              <ul className="mt-1 flex flex-col gap-0.5">
+                {otherOptions.map((o) => (
+                  <li key={o.id} className={o.hiddenAt ? "text-foreground/50" : undefined}>
+                    {optionLine(o)}
+                    {o.hiddenAt ? " (달력에서 숨김)" : ""}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
+
         {error ? (
           <p role="alert" className="text-sm text-red-600">
             {error}
           </p>
+        ) : null}
+
+        {/* 확정하면 나머지 안이 숨겨지므로, 숨겨질 안을 보여 주고 한 번 더 묻는다 */}
+        {confirmingChoice ? (
+          <div role="alertdialog" aria-label="안 확정 확인" className="rounded-lg border border-foreground/30 bg-foreground/5 p-3 text-sm">
+            <p className="font-medium">
+              {event.optionNo ? `${event.optionNo}안` : "이 안"}을 확정할까요?
+            </p>
+            <p className="mt-1">아래 안은 달력에서 숨겨집니다. (기록은 남고, 나중에 확정을 되돌리면 다시 보입니다)</p>
+            <ul className="mt-1 list-disc pl-5">
+              {willHide.map((o) => (
+                <li key={o.id}>{optionLine(o)}</li>
+              ))}
+            </ul>
+            <div className="mt-3 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmingChoice(false)}
+                className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+              >
+                돌아가기
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void runOption("choose")}
+                className="h-10 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+              >
+                확정하고 나머지 숨기기
+              </button>
+            </div>
+          </div>
         ) : null}
 
         {/* 수정 이력: 누가, 언제, 무엇을 고쳤는지 */}
@@ -221,11 +325,21 @@ export default function EventDialog({
           >
             수정
           </button>
-          {canConfirm ? (
+          {event.status === "confirmed" && hiddenOptions.length > 0 ? (
             <button
               type="button"
               disabled={busy}
-              onClick={() => void changeStatus("confirmed")}
+              onClick={() => void runOption("reopen")}
+              className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+            >
+              확정 되돌리고 다른 안 다시 보기
+            </button>
+          ) : null}
+          {canConfirm && !confirmingChoice ? (
+            <button
+              type="button"
+              disabled={busy || optionsLoading || optionsFailed}
+              onClick={handleConfirmClick}
               className="h-10 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
             >
               확정

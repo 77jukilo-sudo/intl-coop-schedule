@@ -20,7 +20,15 @@ interface Item {
   status: ItemStatus;
   message: string | null;
   // 올라간 일정 목록 (결과를 눈으로 확인할 수 있게 보여 준다)
-  found: { title: string; startDate: string | null; dateNote: string | null }[];
+  found: FoundEvent[];
+}
+
+// 올라간 일정 한 줄 (optionNo가 있으면 1안·2안 중 하나)
+interface FoundEvent {
+  title: string;
+  startDate: string | null;
+  dateNote: string | null;
+  optionNo: number | null;
 }
 
 const STATUS_LABEL: Record<ItemStatus, string> = {
@@ -37,7 +45,7 @@ interface UploadResult {
   createdCount: number;
   undatedCount: number;
   truncated: boolean;
-  events: { title: string; startDate: string | null; dateNote: string | null }[];
+  events: FoundEvent[];
 }
 
 let nextItemId = 1;
@@ -262,6 +270,9 @@ export default function UploadPanel({
                           {event.startDate ??
                             (event.dateNote ? `날짜 미정(${event.dateNote})` : "날짜 미정")}
                         </span>{" "}
+                        {event.optionNo ? (
+                          <span className="font-semibold">{event.optionNo}안 </span>
+                        ) : null}
                         {event.title}
                       </li>
                     ))}
