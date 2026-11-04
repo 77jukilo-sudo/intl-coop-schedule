@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { EVENT_STATUS_LABEL, type ScheduleEvent } from "../../types/schedule";
+import { useEffect, useRef, useState } from "react";
+import {
+  EVENT_STATUS_LABEL,
+  type EventStatus,
+  type ScheduleEvent,
+} from "../../types/schedule";
 import { formatDayTitle, formatShortDay } from "../calendar/dateUtils";
 import { CHIP_CLASS } from "../calendar/statusStyle";
+import { updateEvent } from "./eventApi";
 
 // 날짜 표시: 하루짜리는 그 날짜, 여러 날이면 "시작 ~ 끝"
 function formatDateRange(event: ScheduleEvent): string {
@@ -32,18 +37,26 @@ function formatPlace(event: ScheduleEvent): string {
   return place || event.locationNote || "장소 미정";
 }
 
-// 일정 상세 팝업: 일정을 누르면 날짜·시간·장소·담당자·출처를 보여 준다.
-// 확정·수정·취소 버튼은 작업 8번, 도시 지도는 작업 17번에서 붙인다.
+// 일정 상세 팝업: 일정을 누르면 날짜·시간·장소·담당자·출처를 보여 주고,
+// 수정·확정·취소 처리를 할 수 있다. 도시 지도는 작업 17번에서 붙인다.
 export default function EventDialog({
   event,
   assigneeName,
+  onEdit,
+  onChanged,
+  onStale,
   onClose,
 }: {
   event: ScheduleEvent;
   assigneeName: string | null;
+  onEdit: (event: ScheduleEvent) => void; // "수정" 버튼: 입력 폼을 연다
+  onChanged: () => void; // 확정·취소 등으로 일정이 바뀐 뒤 달력을 새로 불러온다
+  onStale: () => void; // 다른 사람이 먼저 고쳐서 화면 내용이 오래됐을 때 달력을 새로 불러온다
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // 열릴 때 모달로 띄운다. (바깥은 어두워지고, Esc 키로 닫힌다)
   useEffect(() => {
@@ -54,6 +67,36 @@ export default function EventDialog({
   const assignee = event.assigneeId
     ? (assigneeName ?? "담당자 정보 없음")
     : "담당자 미정";
+
+  // 상태만 바꾸는 빠른 버튼(확정, 취소 처리, 취소 해제)
+  async function changeStatus(next: EventStatus) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const result = await updateEvent(event.id, event.version, { status: next });
+    setBusy(false);
+    if (result.ok) {
+      onChanged();
+      dialogRef.current?.close();
+      return;
+    }
+    if (result.kind === "conflict") {
+      // 달력을 최신으로 새로 불러와서, 창을 닫고 다시 열면 바뀐 내용이 보이게 한다.
+      onStale();
+      setError(`${result.message} 이 창을 닫고 일정을 다시 열어 주세요.`);
+      return;
+    }
+    setError(result.message);
+  }
+
+  function cancelEvent() {
+    // 취소 처리는 되돌릴 수 있지만(취소 해제), 실수로 누르지 않도록 한 번 더 묻는다.
+    if (window.confirm(`"${event.title}" 일정을 취소 처리할까요?`)) {
+      void changeStatus("cancelled");
+    }
+  }
+
+  const canConfirm = event.status === "pending_review" || event.status === "tentative";
 
   return (
     <dialog
@@ -85,9 +128,7 @@ export default function EventDialog({
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs">
-          <span
-            className={`rounded px-2 py-0.5 ${CHIP_CLASS[event.status]}`}
-          >
+          <span className={`rounded px-2 py-0.5 ${CHIP_CLASS[event.status]}`}>
             {statusLabel}
           </span>
           {event.optionNo ? (
@@ -114,6 +155,55 @@ export default function EventDialog({
           {/* 직접 입력한 일정은 출처가 "직접 입력"으로 저장되어 있어 그대로 보여 주면 된다 */}
           <dd>{event.sourceName}</dd>
         </dl>
+
+        {error ? (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="flex flex-wrap justify-end gap-2">
+          {event.status === "cancelled" ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void changeStatus("tentative")}
+              className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+            >
+              취소 해제
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={cancelEvent}
+              className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+            >
+              취소 처리
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              onEdit(event);
+              dialogRef.current?.close();
+            }}
+            className="h-10 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+          >
+            수정
+          </button>
+          {canConfirm ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void changeStatus("confirmed")}
+              className="h-10 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+            >
+              확정
+            </button>
+          ) : null}
+        </div>
       </div>
     </dialog>
   );

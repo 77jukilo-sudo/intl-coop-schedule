@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { signOut } from "../../app/login/actions";
 import type { Member, ScheduleEvent } from "../../types/schedule";
 import EventDialog from "../events/EventDialog";
+import EventForm from "../events/EventForm";
 import {
   addDays,
   addMonths,
@@ -63,6 +64,8 @@ export default function CalendarView() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [retryCount, setRetryCount] = useState(0);
   const [openEvent, setOpenEvent] = useState<ScheduleEvent | null>(null);
+  // 입력 폼: null이면 닫힘, { event: null }이면 새 일정 추가, { event }이면 그 일정 수정
+  const [form, setForm] = useState<{ event: ScheduleEvent | null } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
 
   const anchor = anchorPick ?? today;
@@ -197,26 +200,35 @@ export default function CalendarView() {
           </button>
         </div>
 
-        <div
-          role="group"
-          aria-label="보기 방식"
-          className="flex overflow-hidden rounded-lg border border-foreground/20 text-sm"
-        >
-          {VIEW_LABELS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => changeView(value)}
-              aria-pressed={view === value}
-              className={`h-9 px-4 ${
-                view === value
-                  ? "bg-foreground text-background"
-                  : "hover:bg-foreground/5"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setForm({ event: null })}
+            className="h-9 rounded-lg bg-foreground px-3 text-sm font-medium text-background"
+          >
+            + 일정 추가
+          </button>
+          <div
+            role="group"
+            aria-label="보기 방식"
+            className="flex overflow-hidden rounded-lg border border-foreground/20 text-sm"
+          >
+            {VIEW_LABELS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => changeView(value)}
+                aria-pressed={view === value}
+                className={`h-9 px-4 ${
+                  view === value
+                    ? "bg-foreground text-background"
+                    : "hover:bg-foreground/5"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -303,7 +315,23 @@ export default function CalendarView() {
           assigneeName={
             members.find((m) => m.id === openEvent.assigneeId)?.name ?? null
           }
+          onEdit={(target) => setForm({ event: target })}
+          onChanged={() => setRetryCount((n) => n + 1)}
+          onStale={() => setRetryCount((n) => n + 1)}
           onClose={() => setOpenEvent(null)}
+        />
+      ) : null}
+
+      {/* 일정 입력 폼: 새 일정 추가 또는 기존 일정 수정 */}
+      {form ? (
+        <EventForm
+          key={form.event?.id ?? "new"}
+          event={form.event}
+          defaultDate={selectedDay}
+          members={members}
+          onSaved={() => setRetryCount((n) => n + 1)}
+          onStale={() => setRetryCount((n) => n + 1)}
+          onClose={() => setForm(null)}
         />
       ) : null}
     </div>

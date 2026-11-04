@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { createSessionSupabase } from "../../../lib/server/supabase-session";
 import { rowToEvent, type EventRow } from "../../../features/events/eventRow";
+import {
+  checkCrossFields,
+  fieldsToRow,
+  parseEventFields,
+  type EventFields,
+} from "../../../features/events/eventInput";
+import { MANUAL_SOURCE_NAME } from "../../../types/schedule";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_RANGE_DAYS = 100; // 한 번에 가져올 수 있는 기간 (달력 한 화면이면 충분)
@@ -58,4 +65,62 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ data: (data as EventRow[]).map(rowToEvent) });
+}
+
+// 일정 직접 추가: POST /api/events
+// 문서 없이 달력에서 입력한 일정이라 출처는 "직접 입력"으로 저장한다.
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null);
+  const parsed = parseEventFields(body);
+  if (!parsed.ok) {
+    return errorResponse(400, "VALIDATION_ERROR", parsed.message);
+  }
+  if (!parsed.value.title || !parsed.value.startDate) {
+    return errorResponse(
+      400,
+      "VALIDATION_ERROR",
+      "행사명과 시작일은 꼭 입력해 주세요.",
+    );
+  }
+
+  const fields: EventFields = {
+    title: parsed.value.title,
+    startDate: parsed.value.startDate,
+    endDate: parsed.value.endDate ?? null,
+    startTime: parsed.value.startTime ?? null,
+    endTime: parsed.value.endTime ?? null,
+    isOverseas: parsed.value.isOverseas ?? false,
+    city: parsed.value.city ?? null,
+    country: parsed.value.country ?? null,
+    assigneeId: parsed.value.assigneeId ?? null,
+    status: parsed.value.status ?? "confirmed",
+  };
+  const crossError = checkCrossFields(fields);
+  if (crossError) return errorResponse(400, "VALIDATION_ERROR", crossError);
+
+  const supabase = await createSessionSupabase();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    return errorResponse(401, "UNAUTHORIZED", "로그인이 필요합니다.");
+  }
+
+  const { data, error } = await supabase
+    .from("events")
+    .insert({ ...fieldsToRow(fields), source_name: MANUAL_SOURCE_NAME })
+    .select("*")
+    .single();
+
+  if (error) {
+    // 23503: 없는 부원을 담당자로 지정한 경우
+    if (error.code === "23503") {
+      return errorResponse(400, "VALIDATION_ERROR", "담당자를 다시 선택해 주세요.");
+    }
+    return errorResponse(
+      500,
+      "INTERNAL_ERROR",
+      "일정을 저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.",
+    );
+  }
+
+  return NextResponse.json({ data: rowToEvent(data as EventRow) }, { status: 201 });
 }
