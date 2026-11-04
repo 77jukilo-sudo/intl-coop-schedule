@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { signOut } from "../../app/login/actions";
 import type { Member, ScheduleEvent } from "../../types/schedule";
 import EventDialog from "../events/EventDialog";
@@ -23,6 +23,7 @@ import {
 import EventList from "./EventList";
 import MonthGrid from "./MonthGrid";
 import StatusLegend from "./StatusLegend";
+import { useRealtimeRefresh } from "./useRealtimeRefresh";
 
 type View = "month" | "week" | "day";
 type LoadState = "loading" | "ok" | "error";
@@ -71,6 +72,14 @@ export default function CalendarView() {
   const anchor = anchorPick ?? today;
   const selectedDay = selectedPick ?? anchor;
 
+  // 다른 사람이 일정을 고쳤을 때의 새로고침: "불러오는 중..." 표시나 오류 표시 없이 조용히 갱신한다.
+  const silentRef = useRef(false);
+  function refreshQuietly() {
+    silentRef.current = true;
+    setRetryCount((n) => n + 1);
+  }
+  useRealtimeRefresh(refreshQuietly);
+
   // 부원 목록은 담당자 이름을 보여 주려고 한 번만 불러온다. (실패해도 달력은 그대로 쓴다)
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +105,9 @@ export default function CalendarView() {
     let cancelled = false;
 
     async function load() {
-      setLoadState("loading");
+      const silent = silentRef.current;
+      silentRef.current = false;
+      if (!silent) setLoadState("loading");
       try {
         const response = await fetch(`/api/events?from=${from}&to=${to}`);
         if (response.status === 401) {
@@ -111,7 +122,8 @@ export default function CalendarView() {
         setEvents(body.data);
         setLoadState("ok");
       } catch {
-        if (!cancelled) setLoadState("error");
+        // 조용한 갱신이 잠깐 실패한 것은 알리지 않는다. 다음 갱신(알림 또는 30초 확인)에서 다시 시도한다.
+        if (!cancelled && !silent) setLoadState("error");
       }
     }
     void load();
@@ -165,6 +177,16 @@ export default function CalendarView() {
       setAnchor(next === "month" ? firstOfMonth(anchor) : anchor);
     }
   }
+
+  // 팝업을 열어 둔 일정을 다른 사람이 고쳤으면, 새로 불러온 더 새로운 내용으로 팝업을 바꿔 보여 준다.
+  // (오래된 버전으로 확정·취소를 눌러서 충돌이 나는 일을 줄인다)
+  const freshest = openEvent
+    ? events.find((e) => e.id === openEvent.id)
+    : undefined;
+  const shownEvent =
+    openEvent && freshest && freshest.version > openEvent.version
+      ? freshest
+      : openEvent;
 
   const title =
     view === "month"
@@ -308,12 +330,12 @@ export default function CalendarView() {
       ) : null}
 
       {/* 일정 상세 팝업: 일정을 누르면 뜬다 */}
-      {openEvent ? (
+      {shownEvent ? (
         <EventDialog
-          key={openEvent.id}
-          event={openEvent}
+          key={shownEvent.id}
+          event={shownEvent}
           assigneeName={
-            members.find((m) => m.id === openEvent.assigneeId)?.name ?? null
+            members.find((m) => m.id === shownEvent.assigneeId)?.name ?? null
           }
           onEdit={(target) => setForm({ event: target })}
           onChanged={() => setRetryCount((n) => n + 1)}
