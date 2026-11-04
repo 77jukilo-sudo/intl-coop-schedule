@@ -272,7 +272,8 @@ interface Member {
 | `UploadPanel` | `features/upload/` | 파일 선택, 대외비 안내, 진행·결과 |
 | `ReconcileDialog` | `features/upload/` | "변경으로 반영할까요?" 비교 |
 | `UndatedList` | `features/upload/` | 날짜 미정 목록 |
-| `LoginForm` | `features/auth/` | 이메일 형식 아이디와 비밀번호 로그인 |
+| `LoginForm` | `features/auth/` | 아이디와 비밀번호 로그인 (가입 화면 없음, 계정은 관리자가 `npm run members -- add`로 만듦) |
+| `UserMenu` | `features/auth/` | 제목줄의 부원 이름과 로그아웃 버튼 |
 | `CityMap` | `features/events/` | 도시 단위 지도 |
 | `SearchBar` (nice) | `features/search/` | 키워드 검색과 분류 필터 |
 
@@ -342,7 +343,8 @@ interface Member {
 ## 7. Security Considerations
 
 - [ ] 로그인한 부원만 모든 화면과 API 사용 (로그인 안 하면 401)
-- [ ] 개인 계정·개인 비밀번호, 수정 이력에 고친 사람 기록
+- [x] 개인 계정·개인 비밀번호 로그인 (작업 4번 완료). 공개 가입은 꺼 두었고, 관리자가 `npm run members -- add | reset | list`로 계정을 만들고 비밀번호를 정한다. 비밀번호는 입력할 때 화면에 보이지 않는다.
+- [ ] 수정 이력에 고친 사람 기록 (작업 10번)
 - [ ] API 키는 서버 코드에서만 사용, 브라우저로 내려가는 코드에 넣지 않음
 - [ ] `.env`는 `.gitignore`에 등록(`.env*`), 커밋 전 확인, Vercel에는 환경변수로 등록
 - [ ] 원본 문서·사진 저장 안 함, 여권번호·주민번호·연락처·예약번호는 저장 칸 자체를 만들지 않음
