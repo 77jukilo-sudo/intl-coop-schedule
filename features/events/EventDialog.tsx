@@ -9,6 +9,7 @@ import {
 import { formatDayTitle, formatShortDay } from "../calendar/dateUtils";
 import { CHIP_CLASS } from "../calendar/statusStyle";
 import { changeOption, fetchOptions, updateEvent, type SaveResult } from "./eventApi";
+import CityMap from "./CityMap";
 import HistoryList from "./HistoryList";
 
 // 날짜 표시: 하루짜리는 그 날짜, 여러 날이면 "시작 ~ 끝"
@@ -42,7 +43,7 @@ function formatPlace(event: ScheduleEvent): string {
 }
 
 // 일정 상세 팝업: 일정을 누르면 날짜·시간·장소·담당자·출처를 보여 주고,
-// 수정·확정·취소 처리를 할 수 있다. 도시 지도는 작업 17번에서 붙인다.
+// 수정·확정·취소 처리를 할 수 있다. 도시 지도도 함께 보여 준다.
 export default function EventDialog({
   event,
   assigneeName,
@@ -213,6 +214,9 @@ export default function EventDialog({
           {/* 직접 입력한 일정은 출처가 "직접 입력"으로 저장되어 있어 그대로 보여 주면 된다 */}
           <dd>{event.sourceName}</dd>
         </dl>
+
+        {/* 행사 도시 지도 (도시 단위, 못 찾으면 "장소 미정") */}
+        <CityMap city={event.city} country={event.country} lat={event.lat} lng={event.lng} />
 
         {/* 1안·2안: 같은 행사의 다른 안 */}
         {event.groupId ? (
