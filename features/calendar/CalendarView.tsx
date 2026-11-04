@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { signOut } from "../../app/login/actions";
 import type { ScheduleEvent } from "../../types/schedule";
 import {
   addDays,
@@ -20,6 +20,7 @@ import {
 } from "./dateUtils";
 import EventList from "./EventList";
 import MonthGrid from "./MonthGrid";
+import StatusLegend from "./StatusLegend";
 
 type View = "month" | "week" | "day";
 type LoadState = "loading" | "ok" | "error";
@@ -52,7 +53,6 @@ function useToday(): DateKey | null {
 
 // 공용 달력: 월 / 주 / 오늘 보기, 이전·다음 이동, 일정 요약 표시.
 export default function CalendarView() {
-  const router = useRouter();
   const today = useToday();
   // 사용자가 직접 옮기기 전에는 비어 있고(null), 그동안은 오늘 날짜를 쓴다.
   const [anchorPick, setAnchor] = useState<DateKey | null>(null);
@@ -75,7 +75,9 @@ export default function CalendarView() {
       try {
         const response = await fetch(`/api/events?from=${from}&to=${to}`);
         if (response.status === 401) {
-          router.replace("/login");
+          // 로그인 정보가 더 이상 맞지 않는다(예: 관리자가 계정을 지움).
+          // 남아 있는 로그인 정보를 지우고 로그인 화면으로 보낸다. 그냥 이동만 하면 서로 되돌려 보내게 된다.
+          await signOut();
           return;
         }
         if (!response.ok) throw new Error("load failed");
@@ -92,7 +94,7 @@ export default function CalendarView() {
     return () => {
       cancelled = true;
     };
-  }, [view, anchor, retryCount, router]);
+  }, [view, anchor, retryCount]);
 
   if (!today || !anchor || !selectedDay) {
     return (
@@ -188,6 +190,8 @@ export default function CalendarView() {
           ))}
         </div>
       </div>
+
+      <StatusLegend />
 
       <div aria-live="polite" className="min-h-5 text-sm">
         {loadState === "loading" ? (

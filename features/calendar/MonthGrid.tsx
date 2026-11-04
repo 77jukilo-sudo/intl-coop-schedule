@@ -8,6 +8,7 @@ import {
   type DateKey,
 } from "./dateUtils";
 import EventChip from "./EventChip";
+import { DOT_CLASS } from "./statusStyle";
 
 const MAX_CHIPS = 3; // 칸 하나에 보여 줄 일정 줄 수 (넘으면 "+N개")
 
@@ -95,7 +96,7 @@ export default function MonthGrid({
                   {dayEvents.slice(0, 3).map((event) => (
                     <span
                       key={event.id}
-                      className="h-1.5 w-1.5 rounded-full bg-foreground/60"
+                      className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[event.status]}`}
                     />
                   ))}
                 </div>
