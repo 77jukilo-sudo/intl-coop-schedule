@@ -200,7 +200,7 @@ interface Member {
 
 **비밀 값 처리** (CLAUDE.md 규칙)
 - Supabase 작업은 Supabase CLI를 설치해 `.env`의 `SUPABASE_ACCESS_TOKEN`으로 하고, Vercel 작업은 Vercel CLI로 `.env`의 `VERCEL_TOKEN`으로 합니다. 토큰을 채팅에 묻거나 출력하지 않습니다.
-- 앱이 실제로 쓸 주소·키(예: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, 서버 전용 `SUPABASE_SERVICE_ROLE_KEY`)는 Supabase 프로젝트를 만든 뒤 CLI로 받아 `.env`에 저장합니다. 값은 출력하지 않습니다.
+- 앱이 실제로 쓸 주소·키(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, 서버 전용 `SUPABASE_SECRET_KEY`, 표 관리용 `SUPABASE_DB_PASSWORD`)는 Supabase 프로젝트를 만든 뒤 받아 `.env`에 저장했습니다. 값은 출력하지 않습니다. (작업 3번에서 완료. 처음 계획의 ANON_KEY·SERVICE_ROLE_KEY 대신 Supabase의 새 방식 이름을 썼습니다.)
 - `NEXT_PUBLIC_`로 시작하는 값만 브라우저에 공개되고, 나머지(AI 키, 서비스 롤 키)는 서버 코드에서만 씁니다.
 
 ---
