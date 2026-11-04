@@ -5,6 +5,7 @@ import { signOut } from "../../app/login/actions";
 import type { Member, ScheduleEvent } from "../../types/schedule";
 import EventDialog from "../events/EventDialog";
 import EventForm from "../events/EventForm";
+import UndatedDialog from "../events/UndatedDialog";
 import UploadPanel from "../upload/UploadPanel";
 import {
   addDays,
@@ -70,6 +71,9 @@ export default function CalendarView() {
   const [form, setForm] = useState<{ event: ScheduleEvent | null } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
+  // 날짜 미정 일정: 문서에 정확한 날짜가 없어 달력에 올라가지 못한 일정 (목록으로 따로 모아 본다)
+  const [undated, setUndated] = useState<ScheduleEvent[]>([]);
+  const [undatedOpen, setUndatedOpen] = useState(false);
 
   const anchor = anchorPick ?? today;
   const selectedDay = selectedPick ?? anchor;
@@ -100,6 +104,25 @@ export default function CalendarView() {
       cancelled = true;
     };
   }, []);
+
+  // 날짜 미정 일정은 보고 있는 기간과 상관없으므로, 일정을 새로 불러올 때마다 함께 불러온다.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadUndated() {
+      try {
+        const response = await fetch("/api/events/undated");
+        if (!response.ok) return;
+        const body = (await response.json()) as { data: ScheduleEvent[] };
+        if (!cancelled) setUndated(body.data);
+      } catch {
+        // 개수 표시만 늦어질 뿐이므로 조용히 넘어간다. 다음 갱신에서 다시 시도한다.
+      }
+    }
+    void loadUndated();
+    return () => {
+      cancelled = true;
+    };
+  }, [retryCount]);
 
   useEffect(() => {
     if (!anchor) return;
@@ -183,7 +206,7 @@ export default function CalendarView() {
   // 팝업을 열어 둔 일정을 다른 사람이 고쳤으면, 새로 불러온 더 새로운 내용으로 팝업을 바꿔 보여 준다.
   // (오래된 버전으로 확정·취소를 눌러서 충돌이 나는 일을 줄인다)
   const freshest = openEvent
-    ? events.find((e) => e.id === openEvent.id)
+    ? [...events, ...undated].find((e) => e.id === openEvent.id)
     : undefined;
   const shownEvent =
     openEvent && freshest && freshest.version > openEvent.version
@@ -225,6 +248,13 @@ export default function CalendarView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setUndatedOpen(true)}
+            className="h-9 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
+          >
+            날짜 미정 ({undated.length})
+          </button>
           <button
             type="button"
             onClick={() => setUploadOpen(true)}
@@ -351,6 +381,16 @@ export default function CalendarView() {
           onStale={() => setRetryCount((n) => n + 1)}
           onRefresh={setOpenEvent}
           onClose={() => setOpenEvent(null)}
+        />
+      ) : null}
+
+      {/* 날짜 미정 목록: 날짜를 입력하면 달력에 올라간다 */}
+      {undatedOpen ? (
+        <UndatedDialog
+          events={undated}
+          onOpenEvent={setOpenEvent}
+          onChanged={refreshQuietly}
+          onClose={() => setUndatedOpen(false)}
         />
       ) : null}
 

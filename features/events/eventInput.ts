@@ -128,6 +128,15 @@ export function parseEventFields(body: unknown): ParseResult<Partial<EventFields
 
 // 항목끼리의 앞뒤 관계 검사. 문제가 있으면 안내 문구를, 없으면 null을 돌려준다.
 export function checkCrossFields(fields: EventFields): string | null {
+  // 날짜 미정 일정(시작일이 비어 있음)도 고칠 수 있다. 다만 날짜 없는 종료일은 의미가 없고,
+  // 날짜가 정해지지 않은 일정은 확정할 수 없다.
+  if (!fields.startDate) {
+    if (fields.endDate) return "종료일을 쓰려면 시작일도 입력해 주세요.";
+    if (fields.status === "confirmed") {
+      return "날짜가 정해져야 확정할 수 있습니다. 날짜를 먼저 입력해 주세요.";
+    }
+    return null;
+  }
   if (fields.endDate && fields.endDate < fields.startDate) {
     return "종료일은 시작일보다 빠를 수 없습니다.";
   }
