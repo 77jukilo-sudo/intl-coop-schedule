@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { notifyOthers } from "../../../../../lib/server/pushNotify";
 import { createSessionSupabase } from "../../../../../lib/server/supabase-session";
 import { rowToEvent, type EventRow } from "../../../../../features/events/eventRow";
 
@@ -145,5 +146,18 @@ export async function POST(
     return conflict(latest as EventRow);
   }
 
-  return NextResponse.json({ data: rowToEvent(rows[0]) });
+  // 확정·확정 되돌리기를 알림을 켜 둔 다른 부원에게 알린다.
+  const resultRow = rows[0];
+  const actorId = userData.user.id;
+  after(() =>
+    notifyOthers({
+      actorId,
+      text: (name) =>
+        action === "choose"
+          ? `${name}님이 ‘${resultRow.title}’ ${resultRow.option_no ?? ""}안을 확정했습니다. 나머지 안은 달력에서 숨겨졌습니다.`
+          : `${name}님이 ‘${resultRow.title}’ 확정을 되돌렸습니다. 숨겨졌던 안이 다시 보입니다.`,
+    }),
+  );
+
+  return NextResponse.json({ data: rowToEvent(resultRow) });
 }

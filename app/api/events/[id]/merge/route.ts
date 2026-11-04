@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { describeChange, notifyOthers } from "../../../../../lib/server/pushNotify";
 import { createSessionSupabase } from "../../../../../lib/server/supabase-session";
 import { rowToEvent, type EventRow } from "../../../../../features/events/eventRow";
 
@@ -94,5 +95,18 @@ export async function POST(
     return conflict(latestRow);
   }
 
-  return NextResponse.json({ data: rowToEvent(rows[0]) });
+  // 변경 반영을 알림을 켜 둔 다른 부원에게 알린다.
+  const mergedRow = rows[0];
+  const changes = describeChange(row, mergedRow);
+  if (changes.length > 0) {
+    const actorId = userData.user.id;
+    after(() =>
+      notifyOthers({
+        actorId,
+        text: (name) => `${name}님이 새 문서 내용으로 ‘${mergedRow.title}’ 일정을 수정했습니다: ${changes.join(", ")}`,
+      }),
+    );
+  }
+
+  return NextResponse.json({ data: rowToEvent(mergedRow) });
 }

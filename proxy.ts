@@ -63,8 +63,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // 정적 파일(이미지·아이콘 등)은 검사하지 않는다.
+  // 정적 파일(이미지·아이콘 등)과 알림용 파일(서비스 워커, 앱 정보)은 검사하지 않는다.
+  // (비밀이 없는 파일이고, 로그인 전에도 브라우저가 내려받을 수 있어야 한다)
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { describeChange, notifyOthers } from "../../../../lib/server/pushNotify";
 import { createSessionSupabase } from "../../../../lib/server/supabase-session";
 import { rowToEvent, type EventRow } from "../../../../features/events/eventRow";
 import {
@@ -149,5 +150,18 @@ export async function PATCH(
     );
   }
 
-  return NextResponse.json({ data: rowToEvent(updated[0] as EventRow) });
+  // 바뀐 내용이 있으면 알림을 켜 둔 다른 부원에게 알린다. (응답을 보낸 뒤에 처리하고, 실패해도 저장에는 영향이 없다)
+  const savedRow = updated[0] as EventRow;
+  const changes = describeChange(currentRow, savedRow);
+  if (changes.length > 0) {
+    const actorId = userData.user.id;
+    after(() =>
+      notifyOthers({
+        actorId,
+        text: (name) => `${name}님이 ‘${savedRow.title}’ 일정을 수정했습니다: ${changes.join(", ")}`,
+      }),
+    );
+  }
+
+  return NextResponse.json({ data: rowToEvent(savedRow) });
 }

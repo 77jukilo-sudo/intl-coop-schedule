@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { notifyOthers } from "../../../lib/server/pushNotify";
 import { createSessionSupabase } from "../../../lib/server/supabase-session";
 import {
   ExtractError,
@@ -171,6 +172,18 @@ export async function POST(request: Request) {
       },
     ];
   });
+
+  // 새 문서에서 일정이 올라왔음을 알림을 켜 둔 다른 부원에게 알린다. (문서 이름은 알림에 넣지 않는다)
+  if (rows.length > 0) {
+    const actorId = userData.user.id;
+    const count = rows.length;
+    after(() =>
+      notifyOthers({
+        actorId,
+        text: (name) => `${name}님이 문서를 올려 일정 ${count}건이 달력에 추가되었습니다. (확인 전)`,
+      }),
+    );
+  }
 
   return NextResponse.json({
     data: {

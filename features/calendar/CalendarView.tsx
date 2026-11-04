@@ -6,6 +6,7 @@ import type { Member, ScheduleEvent } from "../../types/schedule";
 import EventDialog from "../events/EventDialog";
 import EventForm from "../events/EventForm";
 import SearchDialog from "../events/SearchDialog";
+import PushToggle from "../notifications/PushToggle";
 import UndatedDialog from "../events/UndatedDialog";
 import UploadPanel from "../upload/UploadPanel";
 import {
@@ -302,7 +303,10 @@ export default function CalendarView() {
         </div>
       </div>
 
-      <StatusLegend />
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <StatusLegend />
+        <PushToggle />
+      </div>
 
       <div aria-live="polite" className="min-h-5 text-sm">
         {loadState === "loading" ? (
