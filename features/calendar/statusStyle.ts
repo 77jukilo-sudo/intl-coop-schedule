@@ -14,14 +14,6 @@ export const CHIP_CLASS: Record<EventStatus, string> = {
   cancelled: "bg-foreground/5 text-foreground/40 line-through",
 };
 
-// 좁은 화면에서 쓰는 작은 점의 색
-export const DOT_CLASS: Record<EventStatus, string> = {
-  pending_review: "bg-foreground/35",
-  tentative: "bg-blue-500/60",
-  confirmed: "bg-foreground",
-  cancelled: "bg-foreground/20",
-};
-
 // 범례(색 안내)에 보여 줄 순서
 export const LEGEND_ORDER: EventStatus[] = [
   "confirmed",

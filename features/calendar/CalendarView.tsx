@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { signOut } from "../../app/login/actions";
-import type { ScheduleEvent } from "../../types/schedule";
+import type { Member, ScheduleEvent } from "../../types/schedule";
+import EventDialog from "../events/EventDialog";
 import {
   addDays,
   addMonths,
@@ -61,9 +62,30 @@ export default function CalendarView() {
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [retryCount, setRetryCount] = useState(0);
+  const [openEvent, setOpenEvent] = useState<ScheduleEvent | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
 
   const anchor = anchorPick ?? today;
   const selectedDay = selectedPick ?? anchor;
+
+  // 부원 목록은 담당자 이름을 보여 주려고 한 번만 불러온다. (실패해도 달력은 그대로 쓴다)
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMembers() {
+      try {
+        const response = await fetch("/api/members");
+        if (!response.ok) return;
+        const body = (await response.json()) as { data: Member[] };
+        if (!cancelled) setMembers(body.data);
+      } catch {
+        // 담당자 이름만 못 보여 줄 뿐이므로 조용히 넘어간다.
+      }
+    }
+    void loadMembers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!anchor) return;
@@ -120,6 +142,13 @@ export default function CalendarView() {
       setAnchor(next);
       setSelectedDay(next);
     }
+  }
+
+  // 칸의 "+N개"를 누르면 그날의 일정 전체를 보여 주는 "오늘" 보기로 간다.
+  function showDay(day: DateKey) {
+    setView("day");
+    setAnchor(day);
+    setSelectedDay(day);
   }
 
   function changeView(next: View) {
@@ -219,13 +248,18 @@ export default function CalendarView() {
             selectedDay={selectedDay}
             events={events}
             onSelectDay={setSelectedDay}
+            onOpenEvent={setOpenEvent}
+            onShowDay={showDay}
           />
           {/* 좁은 화면: 선택한 날의 일정 목록 */}
           <section className="sm:hidden">
             <h2 className="mb-2 text-sm font-semibold">
               {formatDayTitle(selectedDay)}
             </h2>
-            <EventList events={eventsOnDay(events, selectedDay)} />
+            <EventList
+              events={eventsOnDay(events, selectedDay)}
+              onOpenEvent={setOpenEvent}
+            />
           </section>
         </>
       ) : null}
@@ -242,7 +276,11 @@ export default function CalendarView() {
               <h2 className="mb-2 text-sm font-semibold">
                 {formatShortDay(day)}
               </h2>
-              <EventList events={eventsOnDay(events, day)} emptyText="일정 없음" />
+              <EventList
+                events={eventsOnDay(events, day)}
+                emptyText="일정 없음"
+                onOpenEvent={setOpenEvent}
+              />
             </section>
           ))}
         </div>
@@ -250,8 +288,23 @@ export default function CalendarView() {
 
       {view === "day" ? (
         <section className="rounded-xl border border-foreground/10 p-3">
-          <EventList events={eventsOnDay(events, anchor)} />
+          <EventList
+            events={eventsOnDay(events, anchor)}
+            onOpenEvent={setOpenEvent}
+          />
         </section>
+      ) : null}
+
+      {/* 일정 상세 팝업: 일정을 누르면 뜬다 */}
+      {openEvent ? (
+        <EventDialog
+          key={openEvent.id}
+          event={openEvent}
+          assigneeName={
+            members.find((m) => m.id === openEvent.assigneeId)?.name ?? null
+          }
+          onClose={() => setOpenEvent(null)}
+        />
       ) : null}
     </div>
   );

@@ -8,24 +8,29 @@ import {
   type DateKey,
 } from "./dateUtils";
 import EventChip from "./EventChip";
-import { DOT_CLASS } from "./statusStyle";
 
-const MAX_CHIPS = 3; // 칸 하나에 보여 줄 일정 줄 수 (넘으면 "+N개")
+// 칸 하나에 보여 줄 일정 줄 수. 넘으면 "+N개"를 눌러 그날 전체를 본다.
+const MAX_CHIPS_WIDE = 3;
+const MAX_CHIPS_NARROW = 2;
 
 // 월 보기: 6주짜리 달력. 칸마다 일정 요약을 작게 보여 준다.
-// 휴대폰처럼 좁은 화면에서는 줄 대신 점으로 표시하고, 날짜를 누르면 아래 목록에 그날 일정이 나온다.
+// 좁은 화면(휴대폰)에서는 글자를 더 작게 하고 줄 수를 줄여서 같은 요약을 보여 준다.
 export default function MonthGrid({
   anchor,
   today,
   selectedDay,
   events,
   onSelectDay,
+  onOpenEvent,
+  onShowDay,
 }: {
   anchor: DateKey;
   today: DateKey;
   selectedDay: DateKey;
   events: ScheduleEvent[];
   onSelectDay: (day: DateKey) => void;
+  onOpenEvent: (event: ScheduleEvent) => void;
+  onShowDay: (day: DateKey) => void;
 }) {
   const days = monthGrid(anchor);
 
@@ -50,21 +55,28 @@ export default function MonthGrid({
           const isSelected = day === selectedDay;
           const date = fromDateKey(day);
           const weekday = date.getDay();
+          const moreWide = dayEvents.length - MAX_CHIPS_WIDE;
+          const moreNarrow = dayEvents.length - MAX_CHIPS_NARROW;
 
           return (
-            <button
+            // 칸 안에 버튼(날짜·일정 줄)이 들어 있어서 칸 자체는 버튼이 아니라 div로 둔다.
+            <div
               key={day}
-              type="button"
               onClick={() => onSelectDay(day)}
-              aria-label={`${date.getMonth() + 1}월 ${date.getDate()}일, 일정 ${dayEvents.length}개`}
-              aria-pressed={isSelected}
-              className={`flex min-h-16 flex-col items-stretch gap-1 border-foreground/10 p-1 text-left align-top sm:min-h-28 sm:p-1.5 ${
+              className={`flex min-h-20 min-w-0 cursor-pointer flex-col items-stretch gap-0.5 border-foreground/10 p-0.5 text-left sm:min-h-28 sm:gap-1 sm:p-1.5 ${
                 index % 7 !== 6 ? "border-r" : ""
               } ${index < 35 ? "border-b" : ""} ${
                 isSelected ? "bg-foreground/[0.06]" : "hover:bg-foreground/[0.03]"
               } ${inMonth ? "" : "text-foreground/35"}`}
             >
-              <span
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectDay(day);
+                }}
+                aria-label={`${date.getMonth() + 1}월 ${date.getDate()}일 선택, 일정 ${dayEvents.length}개`}
+                aria-pressed={isSelected}
                 className={`flex h-6 w-6 items-center justify-center self-start rounded-full text-xs sm:text-sm ${
                   isToday
                     ? "bg-foreground font-semibold text-background"
@@ -76,32 +88,51 @@ export default function MonthGrid({
                 } ${inMonth ? "" : "opacity-60"}`}
               >
                 {date.getDate()}
-              </span>
+              </button>
 
-              {/* 넓은 화면: 일정 요약 줄 */}
-              <div className="hidden flex-col gap-0.5 sm:flex">
-                {dayEvents.slice(0, MAX_CHIPS).map((event) => (
-                  <EventChip key={event.id} event={event} />
+              {/* 좁은 화면: 작은 글자로 2줄까지 */}
+              <div className="flex min-w-0 flex-col gap-0.5 sm:hidden">
+                {dayEvents.slice(0, MAX_CHIPS_NARROW).map((event) => (
+                  <EventChip
+                    key={event.id}
+                    event={event}
+                    compact
+                    onOpen={onOpenEvent}
+                  />
                 ))}
-                {dayEvents.length > MAX_CHIPS ? (
-                  <span className="px-1 text-xs text-foreground/60">
-                    +{dayEvents.length - MAX_CHIPS}개
-                  </span>
+                {moreNarrow > 0 ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShowDay(day);
+                    }}
+                    className="px-1 text-left text-[10px] leading-4 text-foreground/60 underline"
+                  >
+                    +{moreNarrow}개
+                  </button>
                 ) : null}
               </div>
 
-              {/* 좁은 화면: 점 */}
-              {dayEvents.length > 0 ? (
-                <div className="flex gap-0.5 px-0.5 sm:hidden" aria-hidden="true">
-                  {dayEvents.slice(0, 3).map((event) => (
-                    <span
-                      key={event.id}
-                      className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[event.status]}`}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </button>
+              {/* 넓은 화면: 3줄까지 */}
+              <div className="hidden min-w-0 flex-col gap-0.5 sm:flex">
+                {dayEvents.slice(0, MAX_CHIPS_WIDE).map((event) => (
+                  <EventChip key={event.id} event={event} onOpen={onOpenEvent} />
+                ))}
+                {moreWide > 0 ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShowDay(day);
+                    }}
+                    className="px-1 text-left text-xs text-foreground/60 underline"
+                  >
+                    +{moreWide}개
+                  </button>
+                ) : null}
+              </div>
+            </div>
           );
         })}
       </div>

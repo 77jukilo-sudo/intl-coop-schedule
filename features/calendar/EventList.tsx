@@ -5,9 +5,11 @@ import EventChip from "./EventChip";
 export default function EventList({
   events,
   emptyText = "일정이 없습니다.",
+  onOpenEvent,
 }: {
   events: ScheduleEvent[];
   emptyText?: string;
+  onOpenEvent?: (event: ScheduleEvent) => void;
 }) {
   if (events.length === 0) {
     return <p className="py-2 text-sm text-foreground/50">{emptyText}</p>;
@@ -16,7 +18,7 @@ export default function EventList({
     <ul className="flex flex-col gap-1.5">
       {events.map((event) => (
         <li key={event.id}>
-          <EventChip event={event} />
+          <EventChip event={event} onOpen={onOpenEvent} />
         </li>
       ))}
     </ul>
