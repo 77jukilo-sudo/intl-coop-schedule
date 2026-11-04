@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSessionSupabase } from "../../../lib/server/supabase-session";
 import { GeocodeError, geocodeCity } from "../../../lib/server/geocode";
+import { createAdminSupabase } from "../../../lib/server/supabase";
 
 const PLACE_MAX = 100;
 const NOT_FOUND_RETRY_DAYS = 7; // 못 찾은 도시는 이 기간이 지나야 다시 찾아본다
@@ -51,8 +52,8 @@ export async function GET(request: Request) {
     throw error;
   }
 
-  // 결과(찾은 것과 못 찾은 것 모두)를 보관한다. 보관에 실패해도 지도는 보여 준다.
-  const { error: saveError } = await supabase.from("place_cache").upsert(
+  // 결과(찾은 것과 못 찾은 것 모두)를 보관한다. 보관함은 서버 전용 열쇠로만 쓸 수 있다. 실패해도 지도는 보여 준다.
+  const { error: saveError } = await createAdminSupabase().from("place_cache").upsert(
     {
       place_key: placeKey,
       city,

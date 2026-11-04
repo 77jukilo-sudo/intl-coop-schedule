@@ -12,5 +12,8 @@ export function createBrowserSupabase() {
       "저장소 연결 값이 없습니다. .env의 NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY를 확인하세요.",
     );
   }
-  return createBrowserClient(url, publishableKey);
+  // 로그인 쿠키는 배포(https)에서 보안 연결로만 보낸다.
+  return createBrowserClient(url, publishableKey, {
+    cookieOptions: { secure: process.env.NODE_ENV === "production" },
+  });
 }

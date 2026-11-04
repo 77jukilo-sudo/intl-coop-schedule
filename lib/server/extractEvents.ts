@@ -135,9 +135,23 @@ interface RawEvent {
   optionNo?: unknown;
 }
 
+// 개인정보 거르기: AI 지시문만 믿지 않고 서버에서도 한 번 더 지운다. (PRD: 주민번호·여권번호·연락처·예약번호는 저장하지 않음)
+// 흔한 모양만 지운다. 놓치는 것이 있을 수 있어 AI 지시문과 함께 이중으로 쓴다.
+const PERSONAL_INFO_PATTERNS: RegExp[] = [
+  /\d{6}\s?-\s?[1-8]\d{6}/g, // 주민등록번호·외국인등록번호
+  /(?<!\d)0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)/g, // 전화번호·휴대폰 번호 (앞뒤에 숫자가 없을 때)
+  /\+\d{1,3}[-.\s]?\(?\d{1,4}\)?(?:[-.\s]?\d{2,4}){2,3}/g, // 국제 전화번호
+  /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, // 이메일
+  /(?<![A-Za-z0-9])[A-Z]{1,2}\d{7,8}(?!\d)/g, // 여권번호 모양
+  /(?:예약\s*번호|PNR|항공권\s*번호|Booking\s*(?:ref|no)\.?)\s*[:：]?\s*[A-Z0-9]{5,10}/gi, // 예약번호
+];
+export function redactPersonalInfo(text: string): string {
+  return PERSONAL_INFO_PATTERNS.reduce((out, pattern) => out.replace(pattern, "[삭제됨]"), text);
+}
+
 const asText = (value: unknown, max: number): string | null => {
   if (typeof value !== "string") return null;
-  const text = value.trim();
+  const text = redactPersonalInfo(value).trim();
   if (!text) return null;
   return text.length > max ? text.slice(0, max) : text;
 };
