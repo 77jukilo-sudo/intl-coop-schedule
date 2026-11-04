@@ -5,6 +5,7 @@ import { signOut } from "../../app/login/actions";
 import type { Member, ScheduleEvent } from "../../types/schedule";
 import EventDialog from "../events/EventDialog";
 import EventForm from "../events/EventForm";
+import UploadPanel from "../upload/UploadPanel";
 import {
   addDays,
   addMonths,
@@ -68,6 +69,7 @@ export default function CalendarView() {
   // 입력 폼: null이면 닫힘, { event: null }이면 새 일정 추가, { event }이면 그 일정 수정
   const [form, setForm] = useState<{ event: ScheduleEvent | null } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const anchor = anchorPick ?? today;
   const selectedDay = selectedPick ?? anchor;
@@ -222,7 +224,14 @@ export default function CalendarView() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setUploadOpen(true)}
+            className="h-9 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
+          >
+            문서 올리기
+          </button>
           <button
             type="button"
             onClick={() => setForm({ event: null })}
@@ -344,6 +353,9 @@ export default function CalendarView() {
           onClose={() => setOpenEvent(null)}
         />
       ) : null}
+
+      {/* 문서 올리기: 보고자료(PDF·Word·사진)를 올린다 */}
+      {uploadOpen ? <UploadPanel onClose={() => setUploadOpen(false)} /> : null}
 
       {/* 일정 입력 폼: 새 일정 추가 또는 기존 일정 수정 */}
       {form ? (
