@@ -106,6 +106,11 @@ export interface EventHistory {
   summary: string; // 예: "날짜 11/12 → 11/15"
 }
 
+// 화면에 보여 줄 수정 이력: 고친 사람의 이름을 함께 담는다.
+export interface EventHistoryEntry extends EventHistory {
+  changedByName: string | null;
+}
+
 // 부원 (로그인 계정과 연결). 담당자 선택 목록에 쓴다.
 export interface Member {
   id: string;

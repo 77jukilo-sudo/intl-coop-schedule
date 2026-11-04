@@ -8,6 +8,11 @@ import {
   type ScheduleEvent,
 } from "../../types/schedule";
 import { createEvent, updateEvent } from "./eventApi";
+import {
+  WHO_LABEL,
+  diffWithLatest,
+  type DiffRow,
+} from "./eventDiff";
 import { checkCrossFields, type EventFields } from "./eventInput";
 
 const inputClass =
@@ -46,6 +51,11 @@ export default function EventForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // 내가 기준으로 삼은 일정(처음 열었을 때의 내용과 버전)
+  const [origin, setOrigin] = useState<ScheduleEvent | null>(event);
+  // 동시 수정이 났을 때 지금 저장된 최신 내용
+  const [conflict, setConflict] = useState<ScheduleEvent | null>(null);
+
   useEffect(() => {
     dialogRef.current?.showModal();
   }, []);
@@ -55,12 +65,13 @@ export default function EventForm({
     ? Array.from(new Set<EventStatus>([event.status, "confirmed", "tentative", "cancelled"]))
     : ["confirmed", "tentative"];
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (saving) return;
-    setError(null);
+  function memberName(id: string | null): string {
+    if (!id) return "담당자 미정";
+    return members.find((m) => m.id === id)?.name ?? "담당자 정보 없음";
+  }
 
-    const fields: EventFields = {
+  function currentFields(): EventFields {
+    return {
       title: title.trim(),
       startDate,
       endDate: endDate || null,
@@ -72,15 +83,13 @@ export default function EventForm({
       assigneeId: assigneeId || null,
       status,
     };
+  }
 
-    if (!fields.title) return setError("행사명을 입력해 주세요.");
-    if (!fields.startDate) return setError("시작일을 입력해 주세요.");
-    const crossError = checkCrossFields(fields);
-    if (crossError) return setError(crossError);
-
+  // version: 저장할 때 "내가 본 버전"으로 보낼 값
+  async function save(fields: EventFields, version: number) {
     setSaving(true);
-    const result = isEdit
-      ? await updateEvent(event.id, event.version, fields)
+    const result = origin
+      ? await updateEvent(origin.id, version, fields)
       : await createEvent(fields);
     setSaving(false);
 
@@ -89,14 +98,60 @@ export default function EventForm({
       dialogRef.current?.close();
       return;
     }
-    if (result.kind === "conflict") {
-      // 달력을 최신으로 새로 불러와서, 창을 닫고 다시 열면 바뀐 내용이 보이게 한다.
+    if (result.kind === "conflict" && result.latest) {
+      // 다른 사람이 먼저 고쳤다. 내 입력은 그대로 두고 최신 내용과 비교해서 보여 준다.
       onStale();
-      setError(`${result.message} 이 창을 닫고 일정을 다시 열어 주세요.`);
+      setError(null);
+      setConflict(result.latest);
       return;
     }
     setError(result.message);
   }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (saving) return;
+    setError(null);
+
+    const fields = currentFields();
+    if (!fields.title) return setError("행사명을 입력해 주세요.");
+    if (!fields.startDate) return setError("시작일을 입력해 주세요.");
+    const crossError = checkCrossFields(fields);
+    if (crossError) return setError(crossError);
+
+    await save(fields, origin?.version ?? 0);
+  }
+
+  // 충돌 해결 1: 최신 내용으로 입력칸을 바꾼다. (내 입력은 사라진다)
+  function useLatest() {
+    if (!conflict) return;
+    setTitle(conflict.title);
+    setStartDate(conflict.startDate ?? "");
+    setEndDate(conflict.endDate ?? "");
+    setStartTime(conflict.startTime ?? "");
+    setEndTime(conflict.endTime ?? "");
+    setIsOverseas(conflict.isOverseas);
+    setCity(conflict.city ?? "");
+    setCountry(conflict.country ?? "");
+    setAssigneeId(conflict.assigneeId ?? "");
+    setStatus(conflict.status);
+    setOrigin(conflict);
+    setConflict(null);
+  }
+
+  // 충돌 해결 2: 내 입력으로 덮어쓴다. (최신 버전을 확인했다는 뜻으로 그 버전으로 저장)
+  async function overwriteWithMine() {
+    if (!conflict || saving) return;
+    const latest = conflict;
+    setOrigin(latest);
+    setConflict(null);
+    await save(currentFields(), latest.version);
+  }
+
+  const diffRows: DiffRow[] =
+    conflict && origin
+      ? diffWithLatest(origin, conflict, currentFields(), memberName)
+      : [];
 
   return (
     <dialog
@@ -120,6 +175,68 @@ export default function EventForm({
             ✕
           </button>
         </div>
+
+        {/* 동시 수정: 다른 사람이 먼저 저장했을 때 최신 내용과 내 입력을 비교해서 보여 준다 */}
+        {conflict ? (
+          <section
+            role="alert"
+            className="flex flex-col gap-3 rounded-lg border border-red-500/40 bg-red-500/5 p-3 text-sm"
+          >
+            <p className="font-semibold text-red-600">
+              방금 다른 사람이 이 일정을 고쳤습니다.
+            </p>
+            {diffRows.length > 0 ? (
+              <div className="overflow-x-auto">
+                {/* 좁은 화면에서도 옆으로 밀리지 않게 칸 너비를 고정하고 글자는 줄바꿈한다 */}
+                <table className="w-full table-fixed border-collapse text-left">
+                  <thead>
+                    <tr className="text-xs text-foreground/60">
+                      <th className="w-1/4 py-1 pr-2 font-normal">항목</th>
+                      <th className="w-[37.5%] py-1 pr-2 font-normal">저장된 최신</th>
+                      <th className="w-[37.5%] py-1 font-normal">내 입력</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {diffRows.map((row) => (
+                      <tr
+                        key={row.label}
+                        className="border-t border-foreground/10 align-top"
+                      >
+                        <td className="py-1.5 pr-2">
+                          {row.label}
+                          <div className="text-[11px] text-foreground/60">
+                            {WHO_LABEL[row.who]}
+                          </div>
+                        </td>
+                        <td className="py-1.5 pr-2 break-words">{row.theirs}</td>
+                        <td className="py-1.5 break-words">{row.mine}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p>내가 입력한 내용은 저장된 최신 내용과 같습니다.</p>
+            )}
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={useLatest}
+                className="h-10 rounded-lg border border-foreground/20 px-3 hover:bg-foreground/5"
+              >
+                최신 내용으로 바꾸기
+              </button>
+              <button
+                type="button"
+                onClick={() => void overwriteWithMine()}
+                disabled={saving}
+                className="h-10 rounded-lg bg-foreground px-3 font-medium text-background disabled:opacity-60"
+              >
+                내 입력으로 덮어쓰기
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium">
@@ -256,7 +373,7 @@ export default function EventForm({
           </button>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || conflict !== null}
             className="h-11 rounded-lg bg-foreground px-5 text-base font-medium text-background disabled:opacity-60"
           >
             {saving ? "저장 중..." : "저장"}

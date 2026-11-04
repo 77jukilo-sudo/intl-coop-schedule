@@ -318,6 +318,7 @@ export default function CalendarView() {
           onEdit={(target) => setForm({ event: target })}
           onChanged={() => setRetryCount((n) => n + 1)}
           onStale={() => setRetryCount((n) => n + 1)}
+          onRefresh={setOpenEvent}
           onClose={() => setOpenEvent(null)}
         />
       ) : null}

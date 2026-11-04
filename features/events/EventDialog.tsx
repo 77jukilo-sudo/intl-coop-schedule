@@ -9,6 +9,7 @@ import {
 import { formatDayTitle, formatShortDay } from "../calendar/dateUtils";
 import { CHIP_CLASS } from "../calendar/statusStyle";
 import { updateEvent } from "./eventApi";
+import HistoryList from "./HistoryList";
 
 // 날짜 표시: 하루짜리는 그 날짜, 여러 날이면 "시작 ~ 끝"
 function formatDateRange(event: ScheduleEvent): string {
@@ -45,6 +46,7 @@ export default function EventDialog({
   onEdit,
   onChanged,
   onStale,
+  onRefresh,
   onClose,
 }: {
   event: ScheduleEvent;
@@ -52,11 +54,13 @@ export default function EventDialog({
   onEdit: (event: ScheduleEvent) => void; // "수정" 버튼: 입력 폼을 연다
   onChanged: () => void; // 확정·취소 등으로 일정이 바뀐 뒤 달력을 새로 불러온다
   onStale: () => void; // 다른 사람이 먼저 고쳐서 화면 내용이 오래됐을 때 달력을 새로 불러온다
+  onRefresh: (latest: ScheduleEvent) => void; // 팝업의 내용을 최신 내용으로 바꾼다
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   // 열릴 때 모달로 띄운다. (바깥은 어두워지고, Esc 키로 닫힌다)
   useEffect(() => {
@@ -81,9 +85,12 @@ export default function EventDialog({
       return;
     }
     if (result.kind === "conflict") {
-      // 달력을 최신으로 새로 불러와서, 창을 닫고 다시 열면 바뀐 내용이 보이게 한다.
+      // 다른 사람이 먼저 고쳤다. 달력과 이 팝업을 최신 내용으로 바꾸고, 확인한 뒤 다시 누르게 한다.
       onStale();
-      setError(`${result.message} 이 창을 닫고 일정을 다시 열어 주세요.`);
+      if (result.latest) onRefresh(result.latest);
+      setError(
+        "방금 다른 사람이 이 일정을 고쳐서 최신 내용으로 바꿨습니다. 내용을 확인한 뒤 다시 눌러 주세요.",
+      );
       return;
     }
     setError(result.message);
@@ -161,6 +168,24 @@ export default function EventDialog({
             {error}
           </p>
         ) : null}
+
+        {/* 수정 이력: 누가, 언제, 무엇을 고쳤는지 */}
+        <div className="border-t border-foreground/10 pt-3">
+          <button
+            type="button"
+            onClick={() => setShowHistory((v) => !v)}
+            aria-expanded={showHistory}
+            className="text-sm underline"
+          >
+            {showHistory ? "수정 이력 닫기" : "수정 이력 보기"}
+          </button>
+          {showHistory ? (
+            <div className="mt-2">
+              {/* 일정이 바뀌면(버전이 달라지면) 이력을 다시 불러온다 */}
+              <HistoryList key={event.version} eventId={event.id} />
+            </div>
+          ) : null}
+        </div>
 
         <div className="flex flex-wrap justify-end gap-2">
           {event.status === "cancelled" ? (
