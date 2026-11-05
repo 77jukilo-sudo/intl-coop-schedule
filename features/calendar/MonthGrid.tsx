@@ -35,12 +35,12 @@ export default function MonthGrid({
   const days = monthGrid(anchor);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-foreground/10">
+    <div className="overflow-hidden rounded-3xl border border-white/15 bg-black/35 backdrop-blur-md">
       <div className="grid grid-cols-7 border-b border-foreground/10 bg-foreground/[0.03] text-center text-xs font-medium">
         {WEEKDAY_LABELS.map((label, i) => (
           <div
             key={label}
-            className={`py-2 ${i === 0 ? "text-red-600" : i === 6 ? "text-blue-600" : ""}`}
+            className={`py-2 ${i === 0 ? "text-rose-400" : i === 6 ? "text-sky-400" : ""}`}
           >
             {label}
           </div>
@@ -81,9 +81,9 @@ export default function MonthGrid({
                   isToday
                     ? "bg-foreground font-semibold text-background"
                     : weekday === 0
-                      ? "text-red-600"
+                      ? "text-rose-400"
                       : weekday === 6
-                        ? "text-blue-600"
+                        ? "text-sky-400"
                         : ""
                 } ${inMonth ? "" : "opacity-60"}`}
               >

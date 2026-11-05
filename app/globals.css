@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
+/* 우주 테마: 항상 어두운 배경에 밝은 글자. (색은 이 변수들만 바꾸면 화면 전체에 적용된다) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #060914;
+  --foreground: #eef2ff;
 }
 
 @theme inline {
@@ -10,17 +11,65 @@
   --color-foreground: var(--foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
+  /* 깊은 남색에서 검정으로 번지는 우주 배경 */
+  background:
+    radial-gradient(1200px 700px at 78% 105%, rgba(30, 80, 190, 0.28), transparent 60%),
+    radial-gradient(900px 600px at 8% -10%, rgba(80, 60, 200, 0.18), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
   /* 한글이 잘 보이는 기본 글꼴 (맥·윈도우·안드로이드 순) */
   font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR",
     system-ui, sans-serif;
+}
+
+/* 지구를 감싸는 푸른 대기 빛 */
+.earth-glow {
+  box-shadow:
+    0 0 60px 6px rgba(80, 150, 255, 0.35),
+    0 0 180px 30px rgba(40, 100, 230, 0.22);
+}
+
+/* 화면 처음 열릴 때 부드럽게 나타나는 효과 */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: rise-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 글자 반짝임(큰 제목용) */
+.title-gradient {
+  background: linear-gradient(180deg, #ffffff 30%, #9db8ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in {
+    animation: none;
+  }
+}
+
+/* 어두운 화면에 어울리도록 지도 그림(밝은 OpenStreetMap)의 밝기를 낮춘다 */
+.leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92) saturate(0.7);
+}
+.leaflet-container {
+  background: #0b1020;
 }

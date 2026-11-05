@@ -13,7 +13,7 @@ import {
 import { CHIP_CLASS } from "../calendar/statusStyle";
 
 const inputClass =
-  "h-11 w-full rounded-lg border border-foreground/20 bg-background px-3 text-base outline-none focus:border-foreground/60";
+  "h-11 w-full rounded-xl border border-white/20 bg-white/5 px-3 text-base outline-none focus:border-foreground/60";
 
 const DEBOUNCE_MS = 300; // 글자를 치는 동안 매번 검색하지 않고 잠깐 멈추면 검색한다
 const RESULT_LIMIT = 100; // 서버가 돌려주는 최대 건수 (app/api/events/search/route.ts와 같아야 한다)
@@ -86,7 +86,7 @@ export default function SearchDialog({
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="search-title"
-      className="m-auto max-h-[92dvh] w-[min(94vw,36rem)] overflow-y-auto rounded-xl border border-foreground/15 bg-background p-0 text-foreground shadow-xl backdrop:bg-black/40"
+      className="m-auto max-h-[92dvh] w-[min(94vw,36rem)] overflow-y-auto rounded-3xl border border-white/15 bg-[#0a0f1f]/90 p-0 backdrop-blur-2xl text-foreground shadow-xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       <div className="flex flex-col gap-4 p-5">
         <div className="flex items-center justify-between gap-3">
@@ -97,7 +97,7 @@ export default function SearchDialog({
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="닫기"
-            className="h-11 w-11 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 shrink-0 rounded-full border border-white/25 bg-white/5 hover:bg-foreground/10"
           >
             ✕
           </button>
@@ -147,7 +147,7 @@ export default function SearchDialog({
             <p className="py-3 text-center text-sm text-foreground/60">찾는 중...</p>
           ) : null}
           {shown.kind === "error" ? (
-            <p role="alert" className="py-3 text-center text-sm text-red-600">
+            <p role="alert" className="py-3 text-center text-sm text-rose-400">
               검색하지 못했습니다. 잠시 뒤 다시 시도해 주세요.
             </p>
           ) : null}
@@ -212,7 +212,7 @@ export default function SearchDialog({
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
-            className="h-11 rounded-lg border border-foreground/20 px-4 text-base hover:bg-foreground/5"
+            className="h-11 rounded-full border border-white/25 bg-white/5 px-4 text-base hover:bg-foreground/5"
           >
             닫기
           </button>

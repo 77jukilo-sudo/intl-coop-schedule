@@ -168,7 +168,7 @@ export default function EventDialog({
         if (e.target === e.currentTarget) e.currentTarget.close();
       }}
       aria-labelledby="event-dialog-title"
-      className="m-auto w-[min(92vw,28rem)] rounded-xl border border-foreground/15 bg-background p-0 text-foreground shadow-xl backdrop:bg-black/40"
+      className="m-auto w-[min(92vw,28rem)] rounded-3xl border border-white/15 bg-[#0a0f1f]/90 p-0 backdrop-blur-2xl text-foreground shadow-xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       <div className="flex flex-col gap-4 p-5">
         <div className="flex items-start justify-between gap-3">
@@ -182,7 +182,7 @@ export default function EventDialog({
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="닫기"
-            className="h-11 w-11 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 shrink-0 rounded-full border border-white/25 bg-white/5 hover:bg-foreground/10"
           >
             ✕
           </button>
@@ -249,7 +249,7 @@ export default function EventDialog({
         ) : null}
 
         {error ? (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-rose-400">
             {error}
           </p>
         ) : null}
@@ -271,7 +271,7 @@ export default function EventDialog({
                 type="button"
                 disabled={busy}
                 onClick={() => setConfirmingChoice(false)}
-                className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+                className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
               >
                 돌아가기
               </button>
@@ -279,7 +279,7 @@ export default function EventDialog({
                 type="button"
                 disabled={busy}
                 onClick={() => void runOption("choose")}
-                className="h-11 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+                className="h-11 rounded-full bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
               >
                 확정하고 나머지 숨기기
               </button>
@@ -311,7 +311,7 @@ export default function EventDialog({
               type="button"
               disabled={busy}
               onClick={() => void changeStatus("tentative")}
-              className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+              className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
             >
               취소 해제
             </button>
@@ -320,7 +320,7 @@ export default function EventDialog({
               type="button"
               disabled={busy}
               onClick={cancelEvent}
-              className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+              className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
             >
               취소 처리
             </button>
@@ -332,7 +332,7 @@ export default function EventDialog({
               onEdit(event);
               dialogRef.current?.close();
             }}
-            className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+            className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
           >
             수정
           </button>
@@ -341,7 +341,7 @@ export default function EventDialog({
               type="button"
               disabled={busy}
               onClick={() => void runOption("reopen")}
-              className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+              className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
             >
               확정 되돌리고 다른 안 다시 보기
             </button>
@@ -351,7 +351,7 @@ export default function EventDialog({
               type="button"
               disabled={busy || optionsLoading || optionsFailed}
               onClick={handleConfirmClick}
-              className="h-11 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+              className="h-11 rounded-full bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
             >
               확정
             </button>

@@ -23,7 +23,7 @@ export default function LoginForm() {
           autoCorrect="off"
           spellCheck={false}
           required
-          className="h-11 rounded-lg border border-foreground/20 bg-background px-3 text-base outline-none focus:border-foreground/60"
+          className="h-11 rounded-xl border border-white/20 bg-white/5 px-3 text-base outline-none focus:border-foreground/60"
         />
       </label>
 
@@ -34,12 +34,12 @@ export default function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
-          className="h-11 rounded-lg border border-foreground/20 bg-background px-3 text-base outline-none focus:border-foreground/60"
+          className="h-11 rounded-xl border border-white/20 bg-white/5 px-3 text-base outline-none focus:border-foreground/60"
         />
       </label>
 
       {state.error ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-rose-400">
           {state.error}
         </p>
       ) : null}
@@ -47,7 +47,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="h-11 rounded-lg bg-foreground text-base font-medium text-background disabled:opacity-60"
+        className="h-11 rounded-full bg-foreground text-base font-medium text-background disabled:opacity-60"
       >
         {pending ? "확인 중..." : "로그인"}
       </button>

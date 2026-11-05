@@ -142,7 +142,7 @@ export default function PushToggle() {
         disabled={busy || on === "unknown"}
         onClick={() => void (on === "on" ? turnOff() : turnOn())}
         aria-pressed={on === "on"}
-        className="h-11 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5 disabled:opacity-60"
+        className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm font-medium hover:bg-foreground/5 disabled:opacity-60"
       >
         {on === "on" ? "🔔 알림 켜짐 (끄기)" : "🔕 알림 받기"}
       </button>

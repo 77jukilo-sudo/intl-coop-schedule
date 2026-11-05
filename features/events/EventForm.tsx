@@ -19,7 +19,7 @@ import {
 import { checkCrossFields, type EventFields } from "./eventInput";
 
 const inputClass =
-  "h-11 w-full rounded-lg border border-foreground/20 bg-background px-3 text-base outline-none focus:border-foreground/60";
+  "h-11 w-full rounded-xl border border-white/20 bg-white/5 px-3 text-base outline-none focus:border-foreground/60";
 
 // 일정 입력 폼(팝업): 새 일정 추가와 기존 일정 수정에 함께 쓴다.
 // 글자 크기를 16px 이상으로 두어 휴대폰에서 입력할 때 화면이 확대되지 않게 한다.
@@ -167,7 +167,7 @@ export default function EventForm({
       onClose={onClose}
       // 입력 중 실수로 바깥을 눌러도 닫히지 않는다. (닫기 버튼, 취소 버튼, Esc 키로만 닫힌다)
       aria-labelledby="event-form-title"
-      className="m-auto max-h-[92dvh] w-[min(94vw,32rem)] overflow-y-auto rounded-xl border border-foreground/15 bg-background p-0 text-foreground shadow-xl backdrop:bg-black/40"
+      className="m-auto max-h-[92dvh] w-[min(94vw,32rem)] overflow-y-auto rounded-3xl border border-white/15 bg-[#0a0f1f]/90 p-0 backdrop-blur-2xl text-foreground shadow-xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-5">
         <div className="flex items-center justify-between gap-3">
@@ -178,7 +178,7 @@ export default function EventForm({
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="닫기"
-            className="h-11 w-11 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 shrink-0 rounded-full border border-white/25 bg-white/5 hover:bg-foreground/10"
           >
             ✕
           </button>
@@ -190,7 +190,7 @@ export default function EventForm({
             role="alert"
             className="flex flex-col gap-3 rounded-lg border border-red-500/40 bg-red-500/5 p-3 text-sm"
           >
-            <p className="font-semibold text-red-600">
+            <p className="font-semibold text-rose-400">
               방금 다른 사람이 이 일정을 고쳤습니다.
             </p>
             {diffRows.length > 0 ? (
@@ -230,7 +230,7 @@ export default function EventForm({
               <button
                 type="button"
                 onClick={useLatest}
-                className="h-11 rounded-lg border border-foreground/20 px-3 hover:bg-foreground/5"
+                className="h-11 rounded-full border border-white/25 bg-white/5 px-3 hover:bg-foreground/5"
               >
                 최신 내용으로 바꾸기
               </button>
@@ -238,7 +238,7 @@ export default function EventForm({
                 type="button"
                 onClick={() => void overwriteWithMine()}
                 disabled={saving}
-                className="h-11 rounded-lg bg-foreground px-3 font-medium text-background disabled:opacity-60"
+                className="h-11 rounded-full bg-foreground px-3 font-medium text-background disabled:opacity-60"
               >
                 내 입력으로 덮어쓰기
               </button>
@@ -248,7 +248,7 @@ export default function EventForm({
 
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium">
-            행사명 <span className="text-red-600">*</span>
+            행사명 <span className="text-rose-400">*</span>
           </span>
           <input
             value={title}
@@ -262,7 +262,7 @@ export default function EventForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">
-              시작일 <span className="text-red-600">*</span>
+              시작일 <span className="text-rose-400">*</span>
             </span>
             <input
               type="date"
@@ -384,7 +384,7 @@ export default function EventForm({
         </label>
 
         {error ? (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-rose-400">
             {error}
           </p>
         ) : null}
@@ -393,14 +393,14 @@ export default function EventForm({
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
-            className="h-11 rounded-lg border border-foreground/20 px-4 text-base hover:bg-foreground/5"
+            className="h-11 rounded-full border border-white/25 bg-white/5 px-4 text-base hover:bg-foreground/5"
           >
             취소
           </button>
           <button
             type="submit"
             disabled={saving || conflict !== null}
-            className="h-11 rounded-lg bg-foreground px-5 text-base font-medium text-background disabled:opacity-60"
+            className="h-11 rounded-full bg-foreground px-5 text-base font-medium text-background disabled:opacity-60"
           >
             {saving ? "저장 중..." : "저장"}
           </button>

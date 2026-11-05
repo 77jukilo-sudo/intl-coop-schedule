@@ -46,7 +46,7 @@ export default function HistoryList({ eventId }: { eventId: string }) {
   }
   if (state.status === "error") {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-rose-400">
         수정 이력을 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.
       </p>
     );

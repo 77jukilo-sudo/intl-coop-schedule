@@ -273,7 +273,7 @@ export default function UploadPanel({
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="upload-title"
-      className="m-auto max-h-[92dvh] w-[min(94vw,32rem)] overflow-y-auto rounded-xl border border-foreground/15 bg-background p-0 text-foreground shadow-xl backdrop:bg-black/40"
+      className="m-auto max-h-[92dvh] w-[min(94vw,32rem)] overflow-y-auto rounded-3xl border border-white/15 bg-[#0a0f1f]/90 p-0 backdrop-blur-2xl text-foreground shadow-xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       <div className="flex flex-col gap-4 p-5">
         <div className="flex items-center justify-between gap-3">
@@ -284,7 +284,7 @@ export default function UploadPanel({
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="닫기"
-            className="h-11 w-11 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 shrink-0 rounded-full border border-white/25 bg-white/5 hover:bg-foreground/10"
           >
             ✕
           </button>
@@ -324,7 +324,7 @@ export default function UploadPanel({
           {/* 키보드로 이동했을 때도 어디에 있는지 보이도록 peer로 표시를 단다 */}
           <label
             htmlFor="upload-input"
-            className={`inline-flex h-11 cursor-pointer items-center rounded-lg border border-foreground/20 px-4 text-base hover:bg-foreground/5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-foreground ${
+            className={`inline-flex h-11 cursor-pointer items-center rounded-full border border-white/25 bg-white/5 px-4 text-base hover:bg-foreground/5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-foreground ${
               running ? "pointer-events-none opacity-60" : ""
             }`}
           >
@@ -346,9 +346,9 @@ export default function UploadPanel({
                   <span
                     className={`shrink-0 text-xs ${
                       item.status === "done"
-                        ? "text-emerald-700 dark:text-emerald-400"
+                        ? "text-emerald-300"
                         : item.status === "error"
-                          ? "text-red-600"
+                          ? "text-rose-400"
                           : "text-foreground/60"
                     }`}
                   >
@@ -403,7 +403,7 @@ export default function UploadPanel({
                                 type="button"
                                 disabled={p.busy}
                                 onClick={() => void handleMerge(item.id, p)}
-                                className="h-11 rounded-lg bg-foreground px-3 text-sm font-medium text-background disabled:opacity-60"
+                                className="h-11 rounded-full bg-foreground px-3 text-sm font-medium text-background disabled:opacity-60"
                               >
                                 {p.busy ? "반영 중..." : "변경으로 반영"}
                               </button>
@@ -411,7 +411,7 @@ export default function UploadPanel({
                                 type="button"
                                 disabled={p.busy}
                                 onClick={() => patchProposal(item.id, p.newId, { decision: "kept" })}
-                                className="h-11 rounded-lg border border-foreground/20 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
+                                className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm hover:bg-foreground/5 disabled:opacity-60"
                               >
                                 별개 일정으로 두기
                               </button>
@@ -425,7 +425,7 @@ export default function UploadPanel({
                           </p>
                         )}
                         {p.error ? (
-                          <p role="alert" className="mt-1.5 text-red-600">
+                          <p role="alert" className="mt-1.5 text-rose-400">
                             {p.error}
                           </p>
                         ) : null}
@@ -449,7 +449,7 @@ export default function UploadPanel({
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
-            className="h-11 rounded-lg border border-foreground/20 px-4 text-base hover:bg-foreground/5"
+            className="h-11 rounded-full border border-white/25 bg-white/5 px-4 text-base hover:bg-foreground/5"
           >
             닫기
           </button>
@@ -457,7 +457,7 @@ export default function UploadPanel({
             type="button"
             onClick={() => void handleUpload()}
             disabled={running || pendingCount === 0}
-            className="h-11 rounded-lg bg-foreground px-5 text-base font-medium text-background disabled:opacity-60"
+            className="h-11 rounded-full bg-foreground px-5 text-base font-medium text-background disabled:opacity-60"
           >
             {running ? "올리는 중..." : "올리기"}
           </button>

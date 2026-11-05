@@ -6,7 +6,7 @@ import { CHIP_CLASS } from "../calendar/statusStyle";
 import { updateEvent } from "./eventApi";
 
 const inputClass =
-  "h-11 w-full rounded-lg border border-foreground/20 bg-background px-3 text-base outline-none focus:border-foreground/60";
+  "h-11 w-full rounded-xl border border-white/20 bg-white/5 px-3 text-base outline-none focus:border-foreground/60";
 
 // 날짜 미정 일정 한 줄: 날짜를 입력하면 달력에 올라간다.
 function UndatedRow({
@@ -103,14 +103,14 @@ function UndatedRow({
         <button
           type="submit"
           disabled={saving}
-          className="h-11 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
+          className="h-11 rounded-full bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
         >
           {saving ? "올리는 중..." : "달력에 올리기"}
         </button>
       </form>
 
       {error ? (
-        <p role="alert" className="mt-1.5 text-sm text-red-600">
+        <p role="alert" className="mt-1.5 text-sm text-rose-400">
           {error}
         </p>
       ) : null}
@@ -146,7 +146,7 @@ export default function UndatedDialog({
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="undated-title"
-      className="m-auto max-h-[92dvh] w-[min(94vw,36rem)] overflow-y-auto rounded-xl border border-foreground/15 bg-background p-0 text-foreground shadow-xl backdrop:bg-black/40"
+      className="m-auto max-h-[92dvh] w-[min(94vw,36rem)] overflow-y-auto rounded-3xl border border-white/15 bg-[#0a0f1f]/90 p-0 backdrop-blur-2xl text-foreground shadow-xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       <div className="flex flex-col gap-4 p-5">
         <div className="flex items-center justify-between gap-3">
@@ -157,7 +157,7 @@ export default function UndatedDialog({
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="닫기"
-            className="h-11 w-11 shrink-0 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 shrink-0 rounded-full border border-white/25 bg-white/5 hover:bg-foreground/10"
           >
             ✕
           </button>
@@ -193,7 +193,7 @@ export default function UndatedDialog({
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
-            className="h-11 rounded-lg border border-foreground/20 px-4 text-base hover:bg-foreground/5"
+            className="h-11 rounded-full border border-white/25 bg-white/5 px-4 text-base hover:bg-foreground/5"
           >
             닫기
           </button>

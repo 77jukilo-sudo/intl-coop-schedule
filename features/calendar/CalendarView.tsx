@@ -233,18 +233,18 @@ export default function CalendarView() {
             type="button"
             onClick={() => move(-1)}
             aria-label={`이전 ${moveLabel}`}
-            className="h-11 w-11 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 rounded-full border border-white/25 bg-white/5 hover:bg-foreground/10"
           >
             ‹
           </button>
-          <h1 className="min-w-0 px-2 text-base font-semibold sm:text-lg">
+          <h1 className="min-w-0 px-2 text-xl font-extrabold tracking-tight sm:text-3xl">
             {title}
           </h1>
           <button
             type="button"
             onClick={() => move(1)}
             aria-label={`다음 ${moveLabel}`}
-            className="h-11 w-11 rounded-lg border border-foreground/20 hover:bg-foreground/5"
+            className="h-11 w-11 rounded-full border border-white/25 bg-white/5 hover:bg-foreground/10"
           >
             ›
           </button>
@@ -254,35 +254,35 @@ export default function CalendarView() {
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="h-11 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
+            className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm font-medium hover:bg-foreground/5"
           >
             검색
           </button>
           <button
             type="button"
             onClick={() => setUndatedOpen(true)}
-            className="h-11 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
+            className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm font-medium hover:bg-foreground/5"
           >
             날짜 미정 ({undated.length})
           </button>
           <button
             type="button"
             onClick={() => setUploadOpen(true)}
-            className="h-11 rounded-lg border border-foreground/20 px-3 text-sm font-medium hover:bg-foreground/5"
+            className="h-11 rounded-full border border-white/25 bg-white/5 px-3 text-sm font-medium hover:bg-foreground/5"
           >
             문서 올리기
           </button>
           <button
             type="button"
             onClick={() => setForm({ event: null })}
-            className="h-11 rounded-lg bg-foreground px-3 text-sm font-medium text-background"
+            className="h-11 rounded-full bg-foreground px-3 text-sm font-medium text-background"
           >
             + 일정 추가
           </button>
           <div
             role="group"
             aria-label="보기 방식"
-            className="flex overflow-hidden rounded-lg border border-foreground/20 text-sm"
+            className="flex overflow-hidden rounded-full border border-white/25 bg-white/5 text-sm"
           >
             {VIEW_LABELS.map(({ value, label }) => (
               <button
@@ -313,7 +313,7 @@ export default function CalendarView() {
           <span className="text-foreground/50">일정을 불러오는 중...</span>
         ) : null}
         {loadState === "error" ? (
-          <span className="text-red-600">
+          <span className="text-rose-400">
             일정을 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.{" "}
             <button
               type="button"
@@ -355,7 +355,7 @@ export default function CalendarView() {
           {weekDays(anchor).map((day) => (
             <section
               key={day}
-              className={`rounded-xl border p-2 ${
+              className={`rounded-2xl bg-black/30 border p-2 ${
                 day === today ? "border-foreground/50" : "border-foreground/10"
               }`}
             >
@@ -373,7 +373,7 @@ export default function CalendarView() {
       ) : null}
 
       {view === "day" ? (
-        <section className="rounded-xl border border-foreground/10 p-3">
+        <section className="rounded-2xl border border-white/12 bg-black/30 p-3 backdrop-blur-sm">
           <EventList
             events={eventsOnDay(events, anchor)}
             onOpenEvent={setOpenEvent}
