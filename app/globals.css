@@ -52,6 +52,29 @@ body {
   animation: rise-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* 큰 타이틀: 단단한 디스플레이 글꼴 + 빛이 천천히 훑고 지나가는 효과 */
+.title-display {
+  font-family: var(--font-title), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  background: linear-gradient(100deg, #ffffff 0%, #ffffff 38%, #8fc2ff 50%, #ffffff 62%, #c9d9ff 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 26px rgba(96, 165, 250, 0.45));
+  animation: title-sweep 7s ease-in-out infinite;
+}
+@keyframes title-sweep {
+  0%,
+  100% {
+    background-position: 100% 0;
+  }
+  50% {
+    background-position: 0% 0;
+  }
+}
+
 /* 글자 반짝임(큰 제목용) */
 .title-gradient {
   background: linear-gradient(180deg, #ffffff 30%, #9db8ff 100%);
@@ -91,6 +114,7 @@ html[data-intro="running"] body::after {
 
 @media (prefers-reduced-motion: reduce) {
   .rise-in,
+  .title-display,
   html[data-intro="done"] .intro-hide {
     animation: none;
   }
