@@ -60,8 +60,38 @@ body {
   color: transparent;
 }
 
+/* ---- 첫 진입 연출 ---- */
+/* 연출이 도는 동안 제목줄과 내용은 숨겨 두고, 끝나면 위에서부터 떠오른다 */
+html[data-intro="running"] .intro-hide {
+  opacity: 0;
+}
+html[data-intro="done"] .intro-hide {
+  animation: rise-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html[data-intro="done"] main.intro-hide {
+  animation-delay: 0.25s;
+}
+/* 화면이 열리자마자 우주가 비치지 않도록 검은 막을 먼저 깐다 */
+html[data-intro="running"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #000;
+  pointer-events: none;
+}
+/* 숫자가 위로 흐려지며 사라진다 */
+@keyframes intro-count-out {
+  to {
+    opacity: 0;
+    filter: blur(7px);
+    transform: translate(-50%, -34px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .rise-in {
+  .rise-in,
+  html[data-intro="done"] .intro-hide {
     animation: none;
   }
 }
