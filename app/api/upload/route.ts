@@ -3,10 +3,10 @@ import { notifyOthers } from "../../../lib/server/pushNotify";
 import { createSessionSupabase } from "../../../lib/server/supabase-session";
 import {
   ExtractError,
-  extractEventsFromDocument,
   redactPersonalInfo,
   type ExtractErrorCode,
 } from "../../../lib/server/extractEvents";
+import { extractFromDocument } from "../../../lib/server/extractPipeline";
 import { findSimilarEvents, type SimilarMatch } from "../../../lib/server/similarEvents";
 import { addDays, todayKey } from "../../../features/calendar/dateUtils";
 import { rowToEvent, type EventRow } from "../../../features/events/eventRow";
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
   // AI가 일정을 뽑는다.
   let extraction;
   try {
-    extraction = await extractEventsFromDocument({ kind: detected.kind, bytes });
+    extraction = await extractFromDocument({ kind: detected.kind, bytes, fileName: file.name });
   } catch (error) {
     if (error instanceof ExtractError) {
       return errorResponse(STATUS_BY_EXTRACT_ERROR[error.code], error.code, error.message);

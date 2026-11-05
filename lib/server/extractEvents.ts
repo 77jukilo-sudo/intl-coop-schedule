@@ -263,7 +263,7 @@ export function validateOptionGroups(events: ExtractedEvent[]): ExtractedEvent[]
   });
 }
 
-function dedupe(events: ExtractedEvent[]): ExtractedEvent[] {
+export function dedupe(events: ExtractedEvent[]): ExtractedEvent[] {
   const seen = new Set<string>();
   const out: ExtractedEvent[] = [];
   for (const event of events) {

@@ -98,7 +98,7 @@ function describe(fields: PlaceTimeFields): string {
 }
 
 // 문서 올리기(팝업): 보고자료(PDF·Word·사진)를 골라 올린다.
-// 서버에서 AI가 문서를 읽어 일정을 찾고, 달력에 "확인 전(회색)"으로 올린다.
+// 서버가 문서의 글자에서 규칙으로 일정을 찾고, 달력에 "확인 전(회색)"으로 올린다. (AI는 선택적인 정리 단계에서만 쓴다)
 export default function UploadPanel({
   onClose,
   onExtracted,
@@ -218,7 +218,7 @@ export default function UploadPanel({
           `${UPLOAD_KIND_LABEL[result.kind]} · ${formatBytes(result.sizeBytes)}`,
           result.createdCount > 0
             ? `일정 ${result.createdCount}건을 달력에 올렸습니다 (확인 전)`
-            : "이 문서에서 일정을 찾지 못했습니다",
+            : "이 문서에서 일정을 찾지 못했습니다. 문서 모양이 달라서일 수 있으니 직접 일정을 추가해 주세요",
         ];
         if (result.undatedCount > 0) {
           parts.push(`그중 날짜를 알 수 없는 일정 ${result.undatedCount}건`);
@@ -297,16 +297,18 @@ export default function UploadPanel({
         >
           <p className="font-semibold">대외비·기밀 표시가 있는 문서는 올리지 마세요.</p>
           <p className="mt-1 text-foreground/80">
-            일정을 찾기 위해 문서 내용이 외부 AI 서비스로 전송될 수 있습니다. 올린
-            원본 파일은 저장하지 않습니다.
+            문서는 이 앱의 서버에서 글자를 읽어 일정을 찾으며, 올린 원본 파일은
+            저장하지 않습니다. 정리 단계에서 AI를 쓰도록 설정된 경우에만, 개인정보를
+            가린 짧은 문장 일부가 외부 AI 서비스로 전송될 수 있습니다.
           </p>
         </div>
 
         <p className="text-sm text-foreground/70">
-          PDF, Word(.docx), 사진(JPEG·PNG·WebP)을 올리면 AI가 일정을 찾아 달력에
-          회색(확인 전)으로 올려 줍니다. 파일 하나는 {formatBytes(MAX_UPLOAD_BYTES)}{" "}
-          이하이고, 사진은 자동으로 줄여서 올립니다. 한글(.hwp) 문서는 PDF로
-          저장해서 올려 주세요.
+          글자가 들어 있는 PDF나 Word(.docx)를 올리면 날짜·장소·행사명을 찾아 달력에
+          회색(확인 전)으로 올려 줍니다. 모양이 다른 문서는 일정을 못 찾을 수 있으니
+          그때는 직접 추가해 주세요. 스캔본·사진은 글자를 읽을 수 없어 지원하지
+          않습니다. 파일 하나는 {formatBytes(MAX_UPLOAD_BYTES)} 이하입니다. 한글(.hwp)
+          문서는 PDF로 저장해서 올려 주세요.
         </p>
 
         <div>
