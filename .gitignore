@@ -42,3 +42,8 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# 작업 도구가 만드는 폴더와 삭제 대기 폴더는 올리지 않는다
+/.bkit/
+/.claude/
+/trash-can/
