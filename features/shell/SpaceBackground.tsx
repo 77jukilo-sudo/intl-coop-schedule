@@ -46,6 +46,8 @@ const TEX_STEPS: [number, number][] = [
   [512, 256],
   [1536, 768],
 ];
+// NASA 지구 지도 "Blue Marble"(Land surface, ocean color and sea ice). 출처: NASA Earth Observatory, 공개 이미지.
+const EARTH_PHOTO = "/textures/earth-day.jpg";
 const MIN_GLOBE_PX = 560; // 지구를 그리는 가로세로 칸 수의 최소·최대(화면에 보이는 크기에 맞춰 정한다)
 const MAX_GLOBE_PX = 860;
 const FRAME_MS = 50; // 지구는 느리게 돌기 때문에 초당 약 20번만 새로 그려도 충분하다(나머지 화면이 버벅이지 않게)
@@ -162,13 +164,28 @@ interface Surface {
 }
 
 // 한 번에 다 만들면 화면이 잠깐 멈추므로, 몇 줄씩 나눠서 만들고 끝나면 알려 준다.
+// photo가 있으면 NASA 지구 지도 사진에서 색을 가져오고, 없으면 코드로 대륙을 그린다.
 function buildSurface(
   TEX_W: number,
   TEX_H: number,
+  photo: HTMLImageElement | null,
   onDone: (s: Surface) => void,
   isCancelled: () => boolean,
 ) {
   const size = TEX_W * TEX_H;
+  // 사진을 이 해상도로 줄이거나 늘려 픽셀 값을 읽어 둔다
+  let pix: Uint8ClampedArray | null = null;
+  if (photo) {
+    const pc = document.createElement("canvas");
+    pc.width = TEX_W;
+    pc.height = TEX_H;
+    const pctx = pc.getContext("2d", { willReadFrequently: true });
+    if (pctx) {
+      pctx.imageSmoothingQuality = "high";
+      pctx.drawImage(photo, 0, 0, TEX_W, TEX_H);
+      pix = pctx.getImageData(0, 0, TEX_W, TEX_H).data;
+    }
+  }
   const s: Surface = {
     w: TEX_W,
     h: TEX_H,
@@ -179,8 +196,9 @@ function buildSurface(
     city: new Uint8Array(size),
     cloud: new Uint8Array(size),
   };
-  const near = buildCoverage(TEX_W, TEX_H, 1.1); // 해안선 근처 흐림(육지/바다 경계)
-  const wide = buildCoverage(TEX_W, TEX_H, 5); // 넓게 흐린 것(얕은 바다 표시용)
+  // 사진이 있으면 대륙 윤곽 계산은 필요 없다
+  const near = pix ? new Uint8Array(0) : buildCoverage(TEX_W, TEX_H, 1.1); // 해안선 근처 흐림(육지/바다 경계)
+  const wide = pix ? new Uint8Array(0) : buildCoverage(TEX_W, TEX_H, 5); // 넓게 흐린 것(얕은 바다 표시용)
   const scale = TEX_W / 1024; // 해안선 흔들림 크기를 그림 크기에 맞춘다
 
   const ROWS_PER_STEP = Math.max(8, Math.round(24 / (scale * scale)));
@@ -200,6 +218,26 @@ function buildSurface(
         const px = cr * Math.sin(lonRad);
         const pz = cr * Math.cos(lonRad);
         const i = row * TEX_W + col;
+
+        // ---- 사진 모드: 색은 NASA 사진에서 가져오고, 구름·도시 불빛만 코드로 더한다 ----
+        if (pix) {
+          const pr = pix[i * 4];
+          const pg = pix[i * 4 + 1];
+          const pb = pix[i * 4 + 2];
+          // 파란 기가 붉은 기보다 확실히 강하면 바다, 아니면 육지(눈·얼음은 하얀색이라 육지로 본다)
+          const water = smooth(pb - pr, 14, 34);
+          s.r[i] = pr;
+          s.g[i] = pg;
+          s.b[i] = pb;
+          s.sea[i] = Math.round(255 * water);
+          const white = smooth(Math.min(pr, pg), 185, 215); // 눈·얼음
+          const cityN = smooth(fbm3(px * 20, cy * 20, pz * 20, 3), 0.55, 0.78);
+          s.city[i] = Math.round(255 * (1 - water) * cityN * (1 - white));
+          const pwx = fbm3(px * 2.4 + 40, cy * 2.4, pz * 2.4, 3);
+          const pcn = fbm3(px * 3.6 + pwx * 1.6, cy * 3.6 + pwx * 1.6, pz * 3.6 - pwx * 1.2, 5);
+          s.cloud[i] = Math.round(255 * smooth(pcn, 0.56, 0.76));
+          continue;
+        }
 
         // 해안선을 들쭉날쭉하게: 윤곽을 보는 위치를 무늬만큼 살짝 흔든다
         const dx = (fbm3(px * 7 + 11, cy * 7, pz * 7, 3) - 0.5) * 16 * scale;
@@ -500,20 +538,32 @@ export default function SpaceBackground() {
         }
       }
     };
-    buildSurface(
-      TEX_STEPS[0][0],
-      TEX_STEPS[0][1],
-      (rough) => {
-        showSurface(rough, true);
-        buildSurface(
-          TEX_STEPS[1][0],
-          TEX_STEPS[1][1],
-          (fine) => showSurface(fine, false),
-          () => cancelled,
-        );
-      },
-      () => cancelled,
-    );
+    const startBuild = (photo: HTMLImageElement | null) => {
+      if (cancelled) return;
+      // 사진이 있으면 원본 크기(2048x1024)까지 쓰고, 없으면 코드로 만든 표면을 쓴다
+      const fineSize: [number, number] = photo ? [2048, 1024] : TEX_STEPS[1];
+      buildSurface(
+        TEX_STEPS[0][0],
+        TEX_STEPS[0][1],
+        photo,
+        (rough) => {
+          showSurface(rough, true);
+          buildSurface(
+            fineSize[0],
+            fineSize[1],
+            photo,
+            (fine) => showSurface(fine, false),
+            () => cancelled,
+          );
+        },
+        () => cancelled,
+      );
+    };
+    // NASA 지구 지도 사진을 먼저 불러온다. 실패하면 코드로 그린 지구로 대신한다.
+    const photo = new Image();
+    photo.onload = () => startBuild(photo);
+    photo.onerror = () => startBuild(null);
+    photo.src = EARTH_PHOTO;
 
     const onResize = () => {
       resizeStars();
