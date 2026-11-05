@@ -24,8 +24,9 @@ body {
     var(--background);
   background-attachment: fixed;
   /* 한글이 잘 보이는 기본 글꼴 (맥·윈도우·안드로이드 순) */
-  font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR",
+  font-family: var(--font-body), "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR",
     system-ui, sans-serif;
+  letter-spacing: -0.005em; /* 한글이 너무 벌어져 보이지 않게 살짝 좁힌다 */
 }
 
 /* 지구를 감싸는 푸른 대기 빛 */
