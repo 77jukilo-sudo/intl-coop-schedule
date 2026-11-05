@@ -41,9 +41,14 @@ const CONTINENTS: [number, number][][] = [
 ];
 
 const SEOUL = { lon: 126.98, lat: 37.57 };
-const TEX_W = 1024; // 지구 표면 그림의 가로 칸 수
-const TEX_H = 512;
-const SIZE = 620; // 지구를 그리는 내부 해상도(화면에는 크기에 맞게 늘려 보여 준다)
+// 지구 표면 그림은 두 번에 나눠 만든다: 먼저 거친 그림으로 빨리 보여 주고, 이어서 고해상도로 바꿔 끼운다.
+const TEX_STEPS: [number, number][] = [
+  [512, 256],
+  [1536, 768],
+];
+const MIN_GLOBE_PX = 560; // 지구를 그리는 가로세로 칸 수의 최소·최대(화면에 보이는 크기에 맞춰 정한다)
+const MAX_GLOBE_PX = 860;
+const FRAME_MS = 50; // 지구는 느리게 돌기 때문에 초당 약 20번만 새로 그려도 충분하다(나머지 화면이 버벅이지 않게)
 const SPIN_DEG_PER_SEC = 4; // 지구가 도는 속도
 const CLOUD_DRIFT = 0.35; // 구름이 땅보다 조금 다르게 흘러가는 정도(1이면 땅과 똑같이 움직임)
 const LIGHT = normalize(-0.62, 0.22, 0.5); // 햇빛 방향 (왼쪽 위 앞쪽)
@@ -111,21 +116,21 @@ function fbm3(x: number, y: number, z: number, octaves: number): number {
 }
 
 // 대륙 윤곽을 그림으로 그린 뒤 흐리게 해서 "육지 비율(0~255)" 칸으로 돌려준다.
-function buildCoverage(blurPx: number): Uint8Array {
-  const out = new Uint8Array(TEX_W * TEX_H);
+function buildCoverage(w: number, h: number, blurPx: number): Uint8Array {
+  const out = new Uint8Array(w * h);
   const canvas = document.createElement("canvas");
-  canvas.width = TEX_W;
-  canvas.height = TEX_H;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext("2d");
   if (!ctx) return out;
   ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, TEX_W, TEX_H);
+  ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = "#fff";
   for (const polygon of CONTINENTS) {
     ctx.beginPath();
     polygon.forEach(([lon, lat], i) => {
-      const x = ((lon + 180) / 360) * TEX_W;
-      const y = ((90 - lat) / 180) * TEX_H;
+      const x = ((lon + 180) / 360) * w;
+      const y = ((90 - lat) / 180) * h;
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
@@ -133,19 +138,21 @@ function buildCoverage(blurPx: number): Uint8Array {
     ctx.fill();
   }
   const soft = document.createElement("canvas");
-  soft.width = TEX_W;
-  soft.height = TEX_H;
+  soft.width = w;
+  soft.height = h;
   const softCtx = soft.getContext("2d");
   if (!softCtx) return out;
-  softCtx.filter = `blur(${blurPx}px)`;
+  softCtx.filter = `blur(${blurPx * (w / 1024)}px)`; // 그림 크기에 비례해 흐리게
   softCtx.drawImage(canvas, 0, 0);
-  const data = softCtx.getImageData(0, 0, TEX_W, TEX_H).data;
+  const data = softCtx.getImageData(0, 0, w, h).data;
   for (let i = 0; i < out.length; i++) out[i] = data[i * 4];
   return out;
 }
 
 // 지구 표면 그림(색, 바다 표시, 도시 불빛, 구름)을 한꺼번에 만든다.
 interface Surface {
+  w: number; // 그림의 가로·세로 칸 수
+  h: number;
   r: Uint8Array;
   g: Uint8Array;
   b: Uint8Array;
@@ -155,9 +162,16 @@ interface Surface {
 }
 
 // 한 번에 다 만들면 화면이 잠깐 멈추므로, 몇 줄씩 나눠서 만들고 끝나면 알려 준다.
-function buildSurface(onDone: (s: Surface) => void, isCancelled: () => boolean) {
+function buildSurface(
+  TEX_W: number,
+  TEX_H: number,
+  onDone: (s: Surface) => void,
+  isCancelled: () => boolean,
+) {
   const size = TEX_W * TEX_H;
   const s: Surface = {
+    w: TEX_W,
+    h: TEX_H,
     r: new Uint8Array(size),
     g: new Uint8Array(size),
     b: new Uint8Array(size),
@@ -165,10 +179,11 @@ function buildSurface(onDone: (s: Surface) => void, isCancelled: () => boolean) 
     city: new Uint8Array(size),
     cloud: new Uint8Array(size),
   };
-  const near = buildCoverage(1.1); // 해안선 근처 흐림(육지/바다 경계)
-  const wide = buildCoverage(5); // 넓게 흐린 것(얕은 바다 표시용)
+  const near = buildCoverage(TEX_W, TEX_H, 1.1); // 해안선 근처 흐림(육지/바다 경계)
+  const wide = buildCoverage(TEX_W, TEX_H, 5); // 넓게 흐린 것(얕은 바다 표시용)
+  const scale = TEX_W / 1024; // 해안선 흔들림 크기를 그림 크기에 맞춘다
 
-  const ROWS_PER_STEP = 24;
+  const ROWS_PER_STEP = Math.max(8, Math.round(24 / (scale * scale)));
   let row = 0;
   const step = () => {
     if (isCancelled()) return;
@@ -187,8 +202,8 @@ function buildSurface(onDone: (s: Surface) => void, isCancelled: () => boolean) 
         const i = row * TEX_W + col;
 
         // 해안선을 들쭉날쭉하게: 윤곽을 보는 위치를 무늬만큼 살짝 흔든다
-        const dx = (fbm3(px * 7 + 11, cy * 7, pz * 7, 3) - 0.5) * 16;
-        const dy = (fbm3(px * 7, cy * 7 + 23, pz * 7, 3) - 0.5) * 12;
+        const dx = (fbm3(px * 7 + 11, cy * 7, pz * 7, 3) - 0.5) * 16 * scale;
+        const dy = (fbm3(px * 7, cy * 7 + 23, pz * 7, 3) - 0.5) * 12 * scale;
         const sc = Math.min(TEX_W - 1, Math.max(0, Math.round(col + dx)));
         const sr = Math.min(TEX_H - 1, Math.max(0, Math.round(row + dy)));
         const rough = fbm3(px * 26, cy * 26, pz * 26, 3);
@@ -303,53 +318,73 @@ export default function SpaceBackground() {
     }
 
     // ---- 지구 ----
-    globeCanvas.width = SIZE;
-    globeCanvas.height = SIZE;
-    const radius = SIZE / 2 - 2;
-    // 화면의 점마다 "위도 칸, 기준 경도, 햇빛 각도, 가장자리 빛, 바다 반짝임"을 미리 계산해 둔다.
-    // (회전할 때는 경도만 더하면 된다)
-    const count = SIZE * SIZE;
-    const rowOf = new Int16Array(count).fill(-1);
-    const baseLon = new Float32Array(count);
-    const ndl = new Float32Array(count); // 햇빛과 표면이 이루는 각도(-1~1, 음수면 밤)
-    const rim = new Float32Array(count);
-    const glint = new Float32Array(count); // 바다에 햇빛이 반사되어 번쩍이는 정도
+    // 화면에 실제로 보이는 크기(고해상도 화면이면 2배)에 맞춰 그려야 흐릿하게 늘어나지 않는다.
     const half = normalize(LIGHT[0], LIGHT[1], LIGHT[2] + 1); // 햇빛과 보는 방향의 중간 방향
-    for (let py = 0; py < SIZE; py++) {
-      for (let px = 0; px < SIZE; px++) {
-        const x = (px + 0.5 - SIZE / 2) / radius;
-        const y = -(py + 0.5 - SIZE / 2) / radius;
-        const rr = x * x + y * y;
-        if (rr > 1) continue;
-        const z = Math.sqrt(1 - rr);
-        const i = py * SIZE + px;
-        const lat = Math.asin(y) * (180 / Math.PI);
-        rowOf[i] = Math.min(TEX_H - 1, Math.max(0, Math.floor(((90 - lat) / 180) * TEX_H)));
-        baseLon[i] = Math.atan2(x, z) * (180 / Math.PI);
-        ndl[i] = x * LIGHT[0] + y * LIGHT[1] + z * LIGHT[2];
-        rim[i] = Math.pow(1 - z, 2.4);
-        glint[i] = Math.pow(Math.max(0, x * half[0] + y * half[1] + z * half[2]), 90);
-      }
-    }
-    const image = globeCtx.createImageData(SIZE, SIZE);
-    const px32 = new Uint32Array(image.data.buffer);
+    let S = 0; // 지구 그림의 가로세로 칸 수
+    let radius = 0;
+    let count = 0;
+    let latFrac = new Float32Array(0); // 위도 위치(0=북극, 1=남극), 지구 밖이면 -1
+    let baseLon = new Float32Array(0);
+    let ndl = new Float32Array(0); // 햇빛과 표면이 이루는 각도(-1~1, 음수면 밤)
+    let rim = new Float32Array(0);
+    let glint = new Float32Array(0); // 바다에 햇빛이 반사되어 번쩍이는 정도
+    let image: ImageData | null = null;
+    let px32 = new Uint32Array(0);
     let surface: Surface | null = null;
 
-    const wrapCol = (lonDeg: number) => {
-      const lon = ((((lonDeg + 180) % 360) + 360) % 360) - 180;
-      return Math.min(TEX_W - 1, Math.floor(((lon + 180) / 360) * TEX_W));
-    };
+    // 화면의 점마다 "위도, 기준 경도, 햇빛 각도, 가장자리 빛, 바다 반짝임"을 미리 계산해 둔다.
+    // (회전할 때는 경도만 더하면 된다)
+    function setupGeometry() {
+      const cssWidth = globeCanvas!.parentElement?.clientWidth || 600;
+      const want = Math.round(cssWidth * Math.min(window.devicePixelRatio || 1, 2));
+      const next = Math.max(MIN_GLOBE_PX, Math.min(MAX_GLOBE_PX, want)) & ~1;
+      if (next === S) return false;
+      S = next;
+      globeCanvas!.width = S;
+      globeCanvas!.height = S;
+      radius = S / 2 - 2;
+      count = S * S;
+      latFrac = new Float32Array(count).fill(-1);
+      baseLon = new Float32Array(count);
+      ndl = new Float32Array(count);
+      rim = new Float32Array(count);
+      glint = new Float32Array(count);
+      for (let py = 0; py < S; py++) {
+        for (let px = 0; px < S; px++) {
+          const x = (px + 0.5 - S / 2) / radius;
+          const y = -(py + 0.5 - S / 2) / radius;
+          const rr = x * x + y * y;
+          if (rr > 1) continue;
+          const z = Math.sqrt(1 - rr);
+          const i = py * S + px;
+          latFrac[i] = (90 - Math.asin(y) * (180 / Math.PI)) / 180;
+          baseLon[i] = Math.atan2(x, z) * (180 / Math.PI);
+          ndl[i] = x * LIGHT[0] + y * LIGHT[1] + z * LIGHT[2];
+          rim[i] = Math.pow(1 - z, 2.4);
+          glint[i] = Math.pow(Math.max(0, x * half[0] + y * half[1] + z * half[2]), 90);
+        }
+      }
+      image = globeCtx!.createImageData(S, S);
+      px32 = new Uint32Array(image.data.buffer);
+      return true;
+    }
+    setupGeometry();
 
     function drawGlobe(rotationDeg: number, spinDeg: number) {
-      if (!surface) return;
-      const { r: sr, g: sg, b: sb, sea, city, cloud } = surface;
+      if (!surface || !image) return;
+      const { w: TEX_W, h: TEX_H, r: sr, g: sg, b: sb, sea, city, cloud } = surface;
+      const wrapCol = (lonDeg: number) => {
+        const lon = ((((lonDeg + 180) % 360) + 360) % 360) - 180;
+        return Math.min(TEX_W - 1, Math.floor(((lon + 180) / 360) * TEX_W));
+      };
       const cloudShift = spinDeg * CLOUD_DRIFT; // 구름은 땅과 조금 다른 속도로 흐른다
       for (let i = 0; i < count; i++) {
-        const row = rowOf[i];
-        if (row < 0) {
+        const lf = latFrac[i];
+        if (lf < 0) {
           px32[i] = 0;
           continue;
         }
+        const row = Math.min(TEX_H - 1, Math.floor(lf * TEX_H));
         const col = wrapCol(baseLon[i] + rotationDeg);
         const ccol = wrapCol(baseLon[i] + rotationDeg + cloudShift);
         const ti = row * TEX_W + col;
@@ -401,7 +436,7 @@ export default function SpaceBackground() {
       }
       globeCtx!.putImageData(image, 0, 0);
 
-      // 서울의 불빛
+      // 서울의 불빛 (위에서 만든 image는 setupGeometry가 정한 크기 S로 그려져 있다)
       let seoulLon = SEOUL.lon - rotationDeg;
       seoulLon = ((((seoulLon + 180) % 360) + 360) % 360) - 180;
       const lonRad = (seoulLon * Math.PI) / 180;
@@ -410,19 +445,20 @@ export default function SpaceBackground() {
       const y = Math.sin(latRad);
       const z = Math.cos(latRad) * Math.cos(lonRad);
       if (z > 0.05) {
-        const sx = SIZE / 2 + x * radius;
-        const sy = SIZE / 2 - y * radius;
+        const k = S / 620; // 그림 크기에 맞춰 불빛 크기도 키운다
+        const sx = S / 2 + x * radius;
+        const sy = S / 2 - y * radius;
         const pulse = reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(performance.now() / 500);
-        const glowG = globeCtx!.createRadialGradient(sx, sy, 0, sx, sy, 14 + 5 * pulse);
+        const glowG = globeCtx!.createRadialGradient(sx, sy, 0, sx, sy, (14 + 5 * pulse) * k);
         glowG.addColorStop(0, "rgba(255,236,170,0.9)");
         glowG.addColorStop(1, "rgba(255,200,90,0)");
         globeCtx!.fillStyle = glowG;
         globeCtx!.beginPath();
-        globeCtx!.arc(sx, sy, 20, 0, Math.PI * 2);
+        globeCtx!.arc(sx, sy, 20 * k, 0, Math.PI * 2);
         globeCtx!.fill();
         globeCtx!.fillStyle = "#fff7d6";
         globeCtx!.beginPath();
-        globeCtx!.arc(sx, sy, 2.2, 0, Math.PI * 2);
+        globeCtx!.arc(sx, sy, 2.2 * k, 0, Math.PI * 2);
         globeCtx!.fill();
       }
     }
@@ -432,6 +468,7 @@ export default function SpaceBackground() {
     let frame = 0;
     let running = true;
     let last = performance.now();
+    let lastGlobe = 0;
     let spin = startRotation;
 
     function tick(now: number) {
@@ -440,17 +477,20 @@ export default function SpaceBackground() {
       last = now;
       spin += SPIN_DEG_PER_SEC * dt;
       drawStars(now / 1000);
-      drawGlobe(-spin + 127, spin); // 서울이 정면 근처를 지나가도록 기준을 맞춘다
+      if (now - lastGlobe >= FRAME_MS) {
+        lastGlobe = now;
+        drawGlobe(-spin + 127, spin); // 서울이 정면 근처를 지나가도록 기준을 맞춘다
+      }
       frame = requestAnimationFrame(tick);
     }
 
     drawStars(0);
-    // 표면 그림을 다 만들면 지구를 서서히 보여 주고 돌리기 시작한다
-    buildSurface(
-      (s) => {
-        if (cancelled) return;
-        surface = s;
-        drawGlobe(-spin + 127, spin);
+    // 거친 표면을 먼저 만들어 빨리 보여 주고, 이어서 고해상도 표면으로 바꿔 끼운다
+    const showSurface = (s: Surface, first: boolean) => {
+      if (cancelled) return;
+      surface = s;
+      drawGlobe(-spin + 127, spin);
+      if (first) {
         globeCanvas.style.opacity = "1";
         if (!reduceMotion && !document.hidden) {
           last = performance.now();
@@ -458,6 +498,19 @@ export default function SpaceBackground() {
         } else {
           running = false;
         }
+      }
+    };
+    buildSurface(
+      TEX_STEPS[0][0],
+      TEX_STEPS[0][1],
+      (rough) => {
+        showSurface(rough, true);
+        buildSurface(
+          TEX_STEPS[1][0],
+          TEX_STEPS[1][1],
+          (fine) => showSurface(fine, false),
+          () => cancelled,
+        );
       },
       () => cancelled,
     );
@@ -465,6 +518,8 @@ export default function SpaceBackground() {
     const onResize = () => {
       resizeStars();
       drawStars(performance.now() / 1000);
+      // 창 크기가 크게 달라지면 지구 그림 크기도 다시 맞춘다
+      if (setupGeometry()) drawGlobe(-spin + 127, spin);
     };
     const onVisibility = () => {
       if (document.hidden) {
