@@ -21,6 +21,15 @@ const MAX_EVENTS = 200;
 const TITLE_MAX = 200;
 const PLACE_MAX = 100;
 const DATE_NOTE_MAX = 200;
+const TITLE_COUNTRY_MAX = 30;
+
+// 달력 제목 규칙: "국가명 · 주최자 또는 행사·회의명". 국가명을 알 수 없으면(국내 행사 등) 행사명만 쓴다.
+// 행사명이 이미 그 국가명으로 시작하면 국가명을 겹쳐 쓰지 않는다.
+export function composeTitle(country: string | null, name: string): string {
+  const full = country && !name.startsWith(country) ? `${country} · ${name}` : name;
+  return full.length > TITLE_MAX ? full.slice(0, TITLE_MAX) : full;
+}
+
 const AI_WORK_CATEGORIES: WorkCategory[] = ["report", "trip", "invite", "visit", "etc"];
 const OPTION_GROUP_MAX = 100;
 const OPTION_NO_MAX = 20;
@@ -70,7 +79,10 @@ const SYSTEM_RULES = (today: string) => `당신은 국제협력부 보고자료�
 
 규칙:
 1. 문서에 실제로 적힌 일정(행사·회의·보고·출장·방문·초청 등 날짜가 있는 활동)만 뽑습니다. 문서에 없는 일정을 만들어 내지 마세요.
-2. title은 문서에 쓰인 행사명을 짧고 분명하게 적습니다. 문서의 언어(한국어 등)를 그대로 씁니다.
+2. 달력에 표시할 제목은 두 부분으로 나누어 적습니다. 문서 제목이나 보고서 이름을 그대로 쓰지 마세요.
+   - titleCountry: 방문지 또는 방문자(상대방)의 국가명입니다. 우리가 해외로 가면 방문지의 국가, 외국 기관·인사가 우리를 찾아오거나 우리가 초청하면 그 외국의 국가입니다. 국가명은 "베트남", "미국", "몽골"처럼 짧은 한국어 일반 명칭으로 적고, 여러 나라이면 "베트남/라오스"처럼 슬래시로 잇습니다. 외국이 관련되지 않은 국내 행사이거나 문서에서 알 수 없으면 null입니다. 짐작하지 마세요.
+   - title: 주최자 또는 행사·회의명입니다. 주최·방문 기관이 문서에 있으면 "기관 + 행사·회의명"으로, 없으면 행사·회의명만 짧고 분명하게 적습니다. 국가명은 titleCountry에 따로 적었으니 title에서는 반드시 빼고 반복하지 않습니다(예: "주한 몽골 대사 방문"이면 titleCountry는 "몽골", title은 "대사 방문"). 문서의 언어(한국어 등)를 그대로 씁니다.
+   - 예시: (일본 도쿄 포럼, 주최 일본 예금보험기구) titleCountry "일본", title "예금보험기구 아시아 부실채권 포럼" / (베트남 국가은행 대표단 초청 정책협의회) titleCountry "베트남", title "국가은행 대표단 정책협의회" / (국내 부서 워크숍) titleCountry null, title "부서 연말 워크숍".
 3. 날짜는 YYYY-MM-DD 형식입니다. 연도가 적혀 있지 않으면 오늘(${today}) 이후로 가장 가까운 해당 날짜의 연도를 씁니다.
 4. 날짜가 "11월 중순", "추후 통보", "미정"처럼 정확하지 않으면 startDate와 endDate를 null로 두고, dateText에 문서에 적힌 원래 표현을 그대로 적습니다. 날짜를 짐작해서 채우지 마세요.
 5. 날짜가 정확하면 dateText는 null입니다. 하루짜리 일정은 endDate가 null이고, 여러 날이면 startDate와 endDate를 모두 적습니다.
@@ -96,6 +108,7 @@ const EVENTS_SCHEMA = {
         type: "object",
         additionalProperties: false,
         required: [
+          "titleCountry",
           "title",
           "startDate",
           "endDate",
@@ -110,6 +123,7 @@ const EVENTS_SCHEMA = {
           "workCategory",
         ],
         properties: {
+          titleCountry: { type: ["string", "null"] },
           title: { type: "string" },
           startDate: { type: ["string", "null"] },
           endDate: { type: ["string", "null"] },
@@ -132,6 +146,7 @@ const EVENTS_SCHEMA = {
 } as const;
 
 interface RawEvent {
+  titleCountry?: unknown;
   title?: unknown;
   startDate?: unknown;
   endDate?: unknown;
@@ -170,8 +185,9 @@ const asText = (value: unknown, max: number): string | null => {
 // AI가 준 값을 그대로 믿지 않고 한 번 더 검사해서 앱이 받아들일 수 있는 모양으로 고친다.
 // 이상한 날짜·시간은 지어내서 고치지 않고 비운다(날짜는 "미정"이 된다).
 export function sanitizeEvent(raw: RawEvent): ExtractedEvent | null {
-  const title = asText(raw.title, TITLE_MAX);
-  if (!title) return null;
+  const name = asText(raw.title, TITLE_MAX);
+  if (!name) return null;
+  const title = composeTitle(asText(raw.titleCountry, TITLE_COUNTRY_MAX), name);
 
   const startDate =
     typeof raw.startDate === "string" && isRealDate(raw.startDate) ? raw.startDate : null;
