@@ -38,6 +38,40 @@ export function titleSimilarity(a: string, b: string): number {
   return (2 * overlap) / (x.length - 1 + (y.length - 1)); // Dice 계수
 }
 
+// ---- 이름이 달라도 "같은 일정"으로 보이는 경우 ----
+// 같은 출장을 문서마다 다른 기관 이름·약칭으로 부르는 일이 많다. (예: "BAM 2차 MOU" / "방콕상업자산관리(BAM) MOU 체결")
+// 그래서 이름이 달라도 "같은 장소 + 같은 날짜"이면 같은 일정일 가능성이 높다고 보고 합칠지 묻는다.
+// 문서 속 AI 없이 앱 안에서 하는 규칙이라 개인정보가 밖으로 나가지 않는다.
+const SCHEDULE_MATCH_SCORE = 0.7; // 며칠짜리 일정에서 장소·날짜가 같을 때의 닮음 점수
+const SAME_DAY_MATCH_SCORE = 0.65; // 하루짜리는 같은 날 같은 도시 일정이 많아서, 이름에도 단서가 있을 때만
+
+// 영문·숫자로 된 약칭(예: BAM, MOU)을 뽑는다. 일반적인 영단어 두 글자 이상만.
+function latinTokens(title: string): Set<string> {
+  return new Set((title.toUpperCase().match(/[A-Z][A-Z0-9]{1,}/g) ?? []));
+}
+
+function samePlace(incoming: ExtractedEvent, row: EventRow): boolean {
+  if (incoming.city && row.city) return incoming.city === row.city;
+  // 도시를 한쪽이라도 모르면 나라가 같은지만 본다 (둘 다 나라를 알 때)
+  if (incoming.country && row.country) return incoming.country === row.country;
+  return false;
+}
+
+// 장소와 날짜가 같은지로 매기는 점수 (해당 없으면 0)
+function scheduleScore(incoming: ExtractedEvent, row: EventRow): number {
+  if (incoming.startDate === null || row.start_date === null) return 0;
+  if (incoming.startDate !== row.start_date) return 0;
+  const inEnd = incoming.endDate ?? incoming.startDate;
+  const rowEnd = row.end_date ?? row.start_date;
+  if (inEnd !== rowEnd) return 0;
+  if (!samePlace(incoming, row)) return 0;
+  if (inEnd !== incoming.startDate) return SCHEDULE_MATCH_SCORE; // 며칠짜리: 장소·날짜가 같으면 충분
+  // 하루짜리: 이름에 공통 약칭이 있거나 이름이 어느 정도 닮을 때만
+  const a = latinTokens(incoming.title);
+  const shared = [...latinTokens(row.title)].some((t) => a.has(t));
+  return shared || titleSimilarity(incoming.title, row.title) >= 0.3 ? SAME_DAY_MATCH_SCORE : 0;
+}
+
 const hm = (time: string | null) => (time ? time.slice(0, 5) : null);
 
 // 새 일정이 기존 일정과 "내용이 달라졌는지". 새 문서에 없는(비어 있는) 항목은 달라진 것으로 보지 않는다.
@@ -72,7 +106,8 @@ export function findSimilarEvents(
       if (row.group_id !== null || row.hidden_at !== null || row.status === "cancelled") return;
       // 기존엔 날짜가 있는데 새 문서는 날짜를 모르면, 바뀐 정보가 아니라 정보가 줄어든 것이다.
       if (event.startDate === null && row.start_date !== null) return;
-      const score = titleSimilarity(event.title, row.title);
+      // 이름이 닮았거나, 이름은 달라도 장소·날짜가 같으면 후보로 본다
+      const score = Math.max(titleSimilarity(event.title, row.title), scheduleScore(event, row));
       if (score < SIMILAR_THRESHOLD) return;
       if (!hasChange(event, row)) return;
       pairs.push({ i, j, score });
